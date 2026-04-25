@@ -203,29 +203,31 @@
       }
       .summary {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 6px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
       }
-      .user-metric,
-      .mileage-metric {
+      .user-metric {
         display: none;
       }
       .metric {
         min-width: 0;
-        padding: 7px 8px;
-        border-radius: 10px;
+        padding: 6px 5px;
+        border-radius: 9px;
       }
       .metric-label {
-        font-size: 9px;
+        font-size: 7.5px;
         line-height: 1;
+        font-weight: 300;
+        letter-spacing: 0;
         white-space: nowrap;
       }
       .metric-value {
-        font-size: 18px;
+        font-size: 16px;
+        font-weight: 650;
       }
       .metric-value.compact {
         max-width: none;
-        font-size: 13px;
+        font-size: 11px;
       }
       main {
         width: min(100% - 24px, 1180px);
@@ -303,15 +305,15 @@
             <div class="metric-value compact" id="monthlyMileage">0 km</div>
           </div>
           <div class="metric">
-            <div class="metric-label">Monthly Activities</div>
+            <div class="metric-label">Monthly Count</div>
             <div class="metric-value" id="monthlyActivities">0</div>
           </div>
           <div class="metric">
-            <div class="metric-label">Activities</div>
+            <div class="metric-label">Total Activities</div>
             <div class="metric-value" id="activityCount">0</div>
           </div>
           <div class="metric">
-            <div class="metric-label">Years</div>
+            <div class="metric-label">Total Years</div>
             <div class="metric-value" id="yearCount">0</div>
           </div>
         </div>
