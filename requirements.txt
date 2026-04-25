@@ -1,0 +1,17 @@
+backports.statistics==0.1.0
+brotli==1.2.0
+brotlicffi==1.2.0.1
+chardet==7.4.3
+cryptography==47.0.0
+garminconnect==0.3.3
+h2==4.3.0
+js==1.0
+matplotlib==3.10.9
+openai==2.32.0
+openpyxl==3.1.5
+pandas==3.0.2
+pyOpenSSL==26.1.0
+python-dotenv==1.2.2
+seaborn==0.13.2
+simplejson==4.1.1
+typing_extensions==4.15.0
