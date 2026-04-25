@@ -8,17 +8,17 @@
   <style>
     :root {
       color-scheme: light;
-      --forest: #3d852e;
-      --leaf: #9ada78;
-      --cream: #fff09c;
-      --orange: #ffa22b;
-      --ink: #20321e;
-      --muted: #687663;
-      --line: #dbe4d3;
+      --brick: #c84a3b;
+      --orange: #de7d27;
+      --cream: #f2d77a;
+      --green: #70ad50;
+      --ink: #352318;
+      --muted: #7a6654;
+      --line: #e8d7b4;
       --panel: #ffffff;
-      --page: #f7f8ef;
-      --soft-leaf: rgba(154, 218, 120, 0.18);
-      --soft-orange: rgba(255, 162, 43, 0.14);
+      --page: #fbf5e7;
+      --soft-green: rgba(112, 173, 80, 0.18);
+      --soft-orange: rgba(222, 125, 39, 0.14);
     }
     * {
       box-sizing: border-box;
@@ -38,7 +38,7 @@
       padding-bottom: 24px;
     }
     .topbar {
-      background: linear-gradient(135deg, var(--forest), #2f6f24);
+      background: linear-gradient(135deg, var(--brick), #a83d32 56%, var(--orange));
       color: #ffffff;
       position: relative;
       overflow: hidden;
@@ -49,9 +49,9 @@
       inset: auto -8% -56px auto;
       width: min(420px, 56vw);
       height: 180px;
-      background: linear-gradient(90deg, var(--leaf), var(--cream), var(--orange));
+      background: linear-gradient(90deg, var(--green), var(--cream), var(--orange));
       border-radius: 999px 0 0 0;
-      opacity: 0.95;
+      opacity: 0.9;
     }
     .topbar-inner {
       width: min(1480px, calc(100% - 32px));
@@ -89,11 +89,11 @@
       border-radius: 14px;
       padding: 12px 13px 11px;
       background: rgba(255, 255, 255, 0.13);
-      box-shadow: 0 16px 34px rgba(16, 50, 18, 0.18);
+      box-shadow: 0 16px 34px rgba(73, 34, 20, 0.2);
       backdrop-filter: blur(12px);
     }
     .metric:nth-child(2) {
-      background: rgba(255, 240, 156, 0.18);
+      background: rgba(242, 215, 122, 0.2);
     }
     .metric-label {
       color: rgba(255, 255, 255, 0.76);
@@ -130,7 +130,7 @@
       border-radius: 14px;
       background: var(--panel);
       margin-bottom: 16px;
-      box-shadow: 0 14px 38px rgba(60, 80, 52, 0.08);
+      box-shadow: 0 14px 38px rgba(91, 57, 30, 0.08);
     }
     .control-field {
       min-width: 0;
@@ -155,15 +155,15 @@
       padding: 0 36px 0 12px;
     }
     select:focus {
-      outline: 3px solid rgba(154, 218, 120, 0.35);
-      border-color: var(--forest);
+      outline: 3px solid rgba(222, 125, 39, 0.28);
+      border-color: var(--brick);
     }
     .chart-shell {
       border: 1px solid var(--line);
       border-radius: 18px;
       background: var(--panel);
       overflow: hidden;
-      box-shadow: 0 18px 52px rgba(60, 80, 52, 0.12);
+      box-shadow: 0 18px 52px rgba(91, 57, 30, 0.12);
     }
     #chart {
       width: 100%;
@@ -237,7 +237,7 @@
         line-height: 1;
         font-weight: 600;
         letter-spacing: 0;
-        text-shadow: 0 1px 2px rgba(20, 45, 17, 0.58);
+        text-shadow: 0 1px 2px rgba(73, 34, 20, 0.58);
         white-space: nowrap;
       }
       .metric-value {
@@ -511,7 +511,7 @@
       const secondsParameter = isSecondsParameter(parameter);
       const hoverValues = secondsParameter ? yValues.map(formatSeconds) : yValues;
       const markerSizes = months.map((_, index) => index === monthIndex ? 12 : 8);
-      const markerColors = months.map((_, index) => index === monthIndex ? "#ffa22b" : "#9ada78");
+      const markerColors = months.map((_, index) => index === monthIndex ? "#de7d27" : "#70ad50");
 
       const trace = {
         x: months,
@@ -519,24 +519,24 @@
         customdata: hoverValues,
         type: "scatter",
         mode: "lines+markers",
-        line: { color: "#3d852e", width: 3, shape: "spline", smoothing: 0.35 },
+        line: { color: "#c84a3b", width: 3, shape: "spline", smoothing: 0.35 },
         marker: {
           size: markerSizes,
           color: markerColors,
           line: { color: "#ffffff", width: 2 }
         },
         fill: "tozeroy",
-        fillcolor: "rgba(154, 218, 120, 0.18)",
+        fillcolor: "rgba(112, 173, 80, 0.18)",
         hovertemplate: secondsParameter
           ? "%{x}<br>%{customdata}<extra></extra>"
           : "%{x}<br>%{y:.2f}<extra></extra>"
       };
 
       const yAxisConfig = {
-        title: { text: getYLabel(parameter), font: { color: "#687663", family: "Avenir Next, Segoe UI, sans-serif" } },
-        tickfont: { color: "#687663", size: getTickSize(), family: "Avenir Next, Segoe UI, sans-serif" },
-        gridcolor: "rgba(104, 118, 99, 0.16)",
-        zerolinecolor: "rgba(104, 118, 99, 0.24)",
+        title: { text: getYLabel(parameter), font: { color: "#7a6654", family: "Avenir Next, Segoe UI, sans-serif" } },
+        tickfont: { color: "#7a6654", size: getTickSize(), family: "Avenir Next, Segoe UI, sans-serif" },
+        gridcolor: "rgba(122, 102, 84, 0.16)",
+        zerolinecolor: "rgba(122, 102, 84, 0.24)",
         ...(secondsParameter ? getSecondsTickConfig(yValues) : {})
       };
 
@@ -545,14 +545,14 @@
           text: `${parameter} Trend in ${year}`,
           x: 0,
           xanchor: "left",
-          font: { size: getTitleSize(), color: "#20321e", family: "Avenir Next, Segoe UI, sans-serif" }
+          font: { size: getTitleSize(), color: "#352318", family: "Avenir Next, Segoe UI, sans-serif" }
         },
         paper_bgcolor: "#ffffff",
-        plot_bgcolor: "#fbfcf6",
+        plot_bgcolor: "#fffaf0",
         xaxis: {
           title: "",
-          tickfont: { color: "#687663", size: getTickSize(), family: "Avenir Next, Segoe UI, sans-serif" },
-          gridcolor: "rgba(104, 118, 99, 0.16)",
+          tickfont: { color: "#7a6654", size: getTickSize(), family: "Avenir Next, Segoe UI, sans-serif" },
+          gridcolor: "rgba(122, 102, 84, 0.16)",
           zeroline: false
         },
         yaxis: yAxisConfig,
@@ -564,7 +564,7 @@
           x1: months[monthIndex],
           y0: 0,
           y1: 1,
-          line: { color: "rgba(255, 162, 43, 0.48)", width: 2, dash: "dot" }
+          line: { color: "rgba(222, 125, 39, 0.52)", width: 2, dash: "dot" }
         }],
         hovermode: "x unified",
         margin: getChartMargin()
