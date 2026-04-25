@@ -54,20 +54,22 @@
       opacity: 0.95;
     }
     .topbar-inner {
-      width: min(1180px, calc(100% - 32px));
+      width: min(1480px, calc(100% - 32px));
       margin: 0 auto;
       padding: 26px 0 24px;
       display: flex;
       justify-content: space-between;
-      gap: 28px;
+      gap: 18px;
       align-items: flex-end;
       position: relative;
       z-index: 1;
     }
     h1 {
       margin: 0;
-      max-width: 760px;
-      font-size: clamp(28px, 4.5vw, 50px);
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: none;
+      font-size: clamp(30px, 4vw, 56px);
       line-height: 1.02;
       font-weight: 750;
       letter-spacing: 0;
@@ -75,16 +77,17 @@
     }
     .summary {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
       justify-content: flex-end;
-      flex: 0 0 auto;
+      flex: 0 1 780px;
     }
     .metric {
-      min-width: 136px;
+      min-width: 0;
+      flex: 1 1 132px;
       border: 1px solid rgba(255, 255, 255, 0.28);
       border-radius: 14px;
-      padding: 14px 16px 13px;
+      padding: 12px 13px 11px;
       background: rgba(255, 255, 255, 0.13);
       box-shadow: 0 16px 34px rgba(16, 50, 18, 0.18);
       backdrop-filter: blur(12px);
@@ -94,22 +97,23 @@
     }
     .metric-label {
       color: rgba(255, 255, 255, 0.76);
-      font-size: 11px;
+      font-size: clamp(9px, 0.72vw, 11px);
       font-weight: 650;
       text-transform: uppercase;
+      white-space: nowrap;
     }
     .metric-value {
       margin-top: 3px;
-      font-size: 26px;
+      font-size: clamp(18px, 1.7vw, 26px);
       line-height: 1;
       font-weight: 800;
     }
     .metric-value.compact {
-      max-width: 180px;
+      max-width: 160px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 16px;
+      font-size: clamp(13px, 1.08vw, 16px);
       line-height: 1.2;
     }
     main {
@@ -165,6 +169,19 @@
       width: 100%;
       height: min(640px, calc(100vh - 220px));
       min-height: 430px;
+    }
+    @media (max-width: 1240px) {
+      .topbar-inner {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .summary {
+        justify-content: flex-start;
+        flex-basis: auto;
+      }
+      .metric {
+        max-width: 220px;
+      }
     }
     @media (max-width: 900px) {
       .topbar-inner {
