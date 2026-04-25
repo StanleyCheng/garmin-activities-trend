@@ -35,7 +35,7 @@
     }
     .page {
       min-height: 100vh;
-      padding-bottom: 32px;
+      padding-bottom: 24px;
     }
     .topbar {
       background: linear-gradient(135deg, var(--forest), #2f6f24);
@@ -56,7 +56,7 @@
     .topbar-inner {
       width: min(1180px, calc(100% - 32px));
       margin: 0 auto;
-      padding: 34px 0 32px;
+      padding: 26px 0 24px;
       display: flex;
       justify-content: space-between;
       gap: 28px;
@@ -67,22 +67,11 @@
     h1 {
       margin: 0;
       max-width: 760px;
-      font-size: clamp(30px, 5vw, 58px);
+      font-size: clamp(28px, 4.5vw, 50px);
       line-height: 1.02;
-      font-weight: 800;
+      font-weight: 750;
       letter-spacing: 0;
-    }
-    .meta {
-      display: inline-flex;
-      margin-top: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.34);
-      border-radius: 999px;
-      padding: 7px 13px;
-      background: rgba(255, 255, 255, 0.14);
-      color: #ffffff;
-      font-size: 14px;
-      font-weight: 650;
-      backdrop-filter: blur(10px);
+      white-space: nowrap;
     }
     .summary {
       display: flex;
@@ -105,13 +94,13 @@
     }
     .metric-label {
       color: rgba(255, 255, 255, 0.76);
-      font-size: 12px;
-      font-weight: 700;
+      font-size: 11px;
+      font-weight: 650;
       text-transform: uppercase;
     }
     .metric-value {
       margin-top: 3px;
-      font-size: 30px;
+      font-size: 26px;
       line-height: 1;
       font-weight: 800;
     }
@@ -120,12 +109,12 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 18px;
+      font-size: 16px;
       line-height: 1.2;
     }
     main {
       width: min(1180px, calc(100% - 32px));
-      margin: 24px auto 0;
+      margin: 18px auto 0;
     }
     .controls {
       display: flex;
@@ -171,7 +160,7 @@
     }
     #chart {
       width: 100%;
-      height: min(620px, calc(100vh - 260px));
+      height: min(640px, calc(100vh - 220px));
       min-height: 430px;
     }
     @media (max-width: 900px) {
@@ -186,7 +175,7 @@
         flex: 1 1 150px;
       }
       #chart {
-        height: min(600px, calc(100vh - 300px));
+        height: min(620px, calc(100vh - 250px));
       }
     }
     @media (max-width: 720px) {
@@ -200,37 +189,30 @@
         opacity: 0.62;
       }
       .topbar-inner {
-        padding-top: 28px;
-        padding-bottom: 24px;
+        padding-top: 18px;
+        padding-bottom: 16px;
         width: min(100% - 24px, 1180px);
-        gap: 18px;
+        gap: 12px;
       }
       h1 {
-        font-size: clamp(28px, 9vw, 42px);
+        font-size: clamp(20px, 6.2vw, 30px);
         max-width: 100%;
-      }
-      .meta {
-        border-radius: 12px;
-        font-size: 13px;
-        padding: 7px 10px;
-        max-width: 100%;
-        line-height: 1.25;
       }
       .metric {
         flex: 1 1 calc(50% - 6px);
         min-width: 0;
-        padding: 12px 13px;
+        padding: 9px 11px;
       }
       .metric-value {
-        font-size: 26px;
+        font-size: 22px;
       }
       .metric-value.compact {
         max-width: none;
-        font-size: 17px;
+        font-size: 15px;
       }
       main {
         width: min(100% - 24px, 1180px);
-        margin-top: 14px;
+        margin-top: 10px;
       }
       .controls {
         padding: 13px;
@@ -250,8 +232,8 @@
         border-radius: 14px;
       }
       #chart {
-        height: min(62vh, 520px);
-        min-height: 390px;
+        height: min(68vh, 560px);
+        min-height: 420px;
       }
     }
     @media (max-width: 420px) {
@@ -265,8 +247,8 @@
         width: min(100% - 20px, 1180px);
       }
       #chart {
-        height: 58vh;
-        min-height: 360px;
+        height: 66vh;
+        min-height: 400px;
       }
     }
   </style>
@@ -277,7 +259,6 @@
       <div class="topbar-inner">
         <div>
           <h1>Garmin Monthly Trends</h1>
-          <div class="meta">Filtered pace range: 3:45 to 15:00 per km</div>
         </div>
         <div class="summary">
           <div class="metric">
@@ -452,10 +433,10 @@
 
     function getChartMargin() {
       if (window.matchMedia("(max-width: 420px)").matches) {
-        return { l: 48, r: 12, t: 52, b: 44 };
+        return { l: 44, r: 10, t: 42, b: 38 };
       }
       if (window.matchMedia("(max-width: 720px)").matches) {
-        return { l: 56, r: 16, t: 56, b: 48 };
+        return { l: 50, r: 12, t: 46, b: 42 };
       }
       return { l: 68, r: 28, t: 68, b: 56 };
     }
