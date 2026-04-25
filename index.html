@@ -128,6 +128,9 @@
       margin-bottom: 16px;
       box-shadow: 0 14px 38px rgba(60, 80, 52, 0.08);
     }
+    .control-field {
+      min-width: 0;
+    }
     label {
       display: block;
       margin-bottom: 6px;
@@ -180,7 +183,7 @@
     }
     @media (max-width: 720px) {
       .page {
-        padding-bottom: 18px;
+        padding-bottom: 10px;
       }
       .topbar::after {
         inset: auto -22% -64px auto;
@@ -189,66 +192,96 @@
         opacity: 0.62;
       }
       .topbar-inner {
-        padding-top: 18px;
-        padding-bottom: 16px;
+        padding-top: 10px;
+        padding-bottom: 10px;
         width: min(100% - 24px, 1180px);
-        gap: 12px;
+        gap: 8px;
       }
       h1 {
-        font-size: clamp(20px, 6.2vw, 30px);
+        font-size: clamp(18px, 5.7vw, 28px);
         max-width: 100%;
       }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .user-metric,
+      .mileage-metric {
+        display: none;
+      }
       .metric {
-        flex: 1 1 calc(50% - 6px);
         min-width: 0;
-        padding: 9px 11px;
+        padding: 7px 8px;
+        border-radius: 10px;
+      }
+      .metric-label {
+        font-size: 9px;
+        line-height: 1;
+        white-space: nowrap;
       }
       .metric-value {
-        font-size: 22px;
+        font-size: 18px;
       }
       .metric-value.compact {
         max-width: none;
-        font-size: 15px;
+        font-size: 13px;
       }
       main {
         width: min(100% - 24px, 1180px);
-        margin-top: 10px;
+        margin-top: 8px;
       }
       .controls {
-        padding: 13px;
-        gap: 12px;
-        margin-bottom: 12px;
+        display: grid;
+        grid-template-columns: 0.8fr 0.9fr 1.35fr;
+        padding: 8px;
+        gap: 6px;
+        margin-bottom: 8px;
+        border-radius: 12px;
+      }
+      label {
+        margin-bottom: 3px;
+        font-size: 9px;
       }
       select {
         min-width: 100%;
         width: 100%;
-        height: 44px;
-        font-size: 16px;
+        height: 34px;
+        border-radius: 8px;
+        font-size: 12px;
+        padding: 0 20px 0 7px;
       }
       .controls > div {
-        width: 100%;
+        width: auto;
       }
       .chart-shell {
-        border-radius: 14px;
+        border-radius: 12px;
       }
       #chart {
-        height: min(68vh, 560px);
-        min-height: 420px;
+        height: min(76vh, 620px);
+        min-height: 470px;
       }
     }
     @media (max-width: 420px) {
       .topbar-inner {
-        width: min(100% - 20px, 1180px);
-      }
-      .metric {
-        flex-basis: 100%;
+        width: min(100% - 16px, 1180px);
       }
       main {
-        width: min(100% - 20px, 1180px);
+        width: min(100% - 16px, 1180px);
+        margin-top: 6px;
+      }
+      .controls {
+        grid-template-columns: 0.76fr 0.86fr 1.38fr;
+        gap: 5px;
+        padding: 7px;
+      }
+      select {
+        height: 32px;
+        font-size: 11px;
       }
       #chart {
-        height: 66vh;
-        min-height: 400px;
+        height: 78vh;
+        min-height: 500px;
       }
     }
   </style>
@@ -261,11 +294,11 @@
           <h1>Garmin Monthly Trends</h1>
         </div>
         <div class="summary">
-          <div class="metric">
+          <div class="metric user-metric">
             <div class="metric-label">Garmin User</div>
             <div class="metric-value compact" id="garminUser">Garmin User</div>
           </div>
-          <div class="metric">
+          <div class="metric mileage-metric">
             <div class="metric-label">Monthly Mileage</div>
             <div class="metric-value compact" id="monthlyMileage">0 km</div>
           </div>
@@ -287,15 +320,15 @@
 
     <main>
       <div class="controls">
-        <div>
+        <div class="control-field">
           <label for="yearSelect">Year</label>
           <select id="yearSelect"></select>
         </div>
-        <div>
+        <div class="control-field">
           <label for="monthSelect">Month</label>
           <select id="monthSelect"></select>
         </div>
-        <div>
+        <div class="control-field parameter-field">
           <label for="parameterSelect">Parameter</label>
           <select id="parameterSelect"></select>
         </div>
@@ -433,20 +466,20 @@
 
     function getChartMargin() {
       if (window.matchMedia("(max-width: 420px)").matches) {
-        return { l: 44, r: 10, t: 42, b: 38 };
+        return { l: 40, r: 8, t: 34, b: 32 };
       }
       if (window.matchMedia("(max-width: 720px)").matches) {
-        return { l: 50, r: 12, t: 46, b: 42 };
+        return { l: 44, r: 10, t: 38, b: 34 };
       }
       return { l: 68, r: 28, t: 68, b: 56 };
     }
 
     function getTitleSize() {
-      return window.matchMedia("(max-width: 720px)").matches ? 16 : 20;
+      return window.matchMedia("(max-width: 720px)").matches ? 14 : 20;
     }
 
     function getTickSize() {
-      return window.matchMedia("(max-width: 720px)").matches ? 11 : 12;
+      return window.matchMedia("(max-width: 720px)").matches ? 10 : 12;
     }
 
     function renderChart() {
