@@ -116,16 +116,20 @@ function renderApp(chartData) {
     const chips = document.createElement("div");
     chips.className = "chip-group";
     const buckets = ["all", ...chartData.meta.distance_buckets.filter(b => b !== "all")];
+    const chipButtons = [];
     for (const b of buckets) {
       const chip = document.createElement("button");
       chip.textContent = b === "all" ? "All" : `${b} km`;
       chip.className = "chip" + (state.bucket === b ? " chip-active" : "");
       chip.addEventListener("click", () => {
         state.bucket = b;
-        renderBucketChips(chartData);  // re-render to update active class
+        for (const btn of chipButtons) {
+          btn.classList.toggle("chip-active", btn === chip);
+        }
         renderChart(chartData);
       });
       chips.appendChild(chip);
+      chipButtons.push(chip);
     }
     wrap.appendChild(chips);
     return wrap;
