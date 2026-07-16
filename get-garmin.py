@@ -14,7 +14,7 @@ except ModuleNotFoundError as exc:
 
 from get_data import fetch_activities, get_client, DEFAULT_MAX_ACTIVITIES, DEFAULT_BATCH_SIZE
 from garminconnect import GarminConnectConnectionError, GarminConnectTooManyRequestsError
-from transform import normalize_activity, clean
+from transform import normalize_activity, clean, format_public_username
 from aggregate import build_payload, save_payload, now_iso
 
 DEFAULT_OUTPUT_FILE = "garmin_activities_formatted.xlsx"
@@ -50,12 +50,6 @@ def _load_credentials():
                 return username, password
 
     raise ValueError("Missing GARMIN_USERNAME or GARMIN_PASSWORD — see README.")
-
-
-def _mask(username):
-    if not username:
-        return ""
-    return username[0] + "***"
 
 
 def _save_excel(activities, path):
@@ -103,7 +97,7 @@ def _run(args):
     payload = build_payload(
         kept, drops,
         generated_at=now_iso(),
-        garmin_username_masked=_mask(username),
+        garmin_username_masked=format_public_username(username),
     )
     save_payload(payload, args.json_output)
     print(f"JSON saved to {args.json_output}")

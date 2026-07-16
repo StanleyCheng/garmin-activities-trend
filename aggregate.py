@@ -26,11 +26,6 @@ def _empty_year():
     return {p: [None] * 12 if p != "activity_count" else [0] * 12 for p in _PARAMS}
 
 
-def _acc(month_arrays, params_to_track):
-    """Helper to accumulate values into a month's arrays."""
-    return month_arrays
-
-
 def build_monthly(activities):
     """Return {year: {param: [12 vals]}} aggregating across ALL activities."""
     by_year = defaultdict(_empty_year)

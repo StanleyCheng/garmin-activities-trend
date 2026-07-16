@@ -147,3 +147,15 @@ def clean(activities):
         kept.append(a)
 
     return kept, dropped_by_reason
+
+
+def format_public_username(username):
+    """Return a privacy-safe representation of the Garmin username.
+
+    Per spec §6: drop domain entirely — show only first letter + `***`.
+    Cosmetic only; the underlying JSON contains enough data to identify
+    the runner, so masking is not anonymity, just appearance.
+    """
+    if not username:
+        return ""
+    return username[0] + "***"
