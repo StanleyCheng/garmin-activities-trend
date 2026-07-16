@@ -121,13 +121,8 @@ function formatPaceMMSS(seconds) {
 }
 
 function renderStats(stats) {
-  const main = document.querySelector(".page > main");
-  let footer = document.getElementById("stats-footer");
-  if (!footer) {
-    footer = document.createElement("footer");
-    footer.id = "stats-footer";
-    main.appendChild(footer);
-  }
+  const footer = document.getElementById("stats-footer");
+  if (!footer) return;
   footer.replaceChildren();
 
   const items = [
@@ -433,6 +428,10 @@ function renderApp(chartData) {
   const chartDiv = document.createElement("div");
   chartDiv.id = "chart";
   chartShell.appendChild(chartDiv);
+
+  const footer = document.createElement("div");
+  footer.id = "stats-footer";
+  chartShell.appendChild(footer);
 
   function updateSummary() {
     const values = getYearlyValues(chartData, String(state.toYear));
