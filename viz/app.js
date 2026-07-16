@@ -4,6 +4,18 @@
 // Swap to noUiSlider library when slider decision is finalized.
 const MAX_OVERLAY_YEARS = 6;
 
+// Client-side mirror of transform.to_bucket (Python is source of truth).
+const BUCKET_UPPER_BOUNDS_CLIENT = [3, 5, 10, 15, 25, 40, Infinity];
+const BUCKET_NAMES_CLIENT = ["<3", "3-5", "5-10", "10-15", "15-25", "25-40", "40+"];
+
+function toBucketClient(km) {
+  if (km == null) return "all";
+  for (let i = 0; i < BUCKET_UPPER_BOUNDS_CLIENT.length; i++) {
+    if (km < BUCKET_UPPER_BOUNDS_CLIENT[i]) return BUCKET_NAMES_CLIENT[i];
+  }
+  return "40+";
+}
+
 const appEl = document.getElementById("app");
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -75,6 +87,78 @@ function getYearlyValues(chartData, year) {
   }
   const monthlyByBucket = chartData.monthly.monthly_by_bucket || chartData.monthly_by_bucket;
   return monthlyByBucket?.[year]?.[state.bucket];
+}
+
+function filterActivities(chartData) {
+  return chartData.activities.filter((a) => {
+    if (a.year < state.fromYear || a.year > state.toYear) return false;
+    if (state.bucket !== "all") {
+      const b = toBucketClient(a.distance_km);
+      if (b !== state.bucket) return false;
+    }
+    return true;
+  });
+}
+
+function computeStats(filtered) {
+  const paces = filtered.map((a) => a.pace_s_per_km).filter((v) => v !== null);
+  const distances = filtered.map((a) => a.distance_km).filter((v) => v !== null);
+  return {
+    avgPace: paces.length ? paces.reduce((s, v) => s + v, 0) / paces.length : null,
+    totalMileage: distances.reduce((s, v) => s + v, 0),
+    activityCount: filtered.length,
+    longestRun: distances.length ? Math.max(...distances) : null,
+    bestPace: paces.length ? Math.min(...paces) : null,
+  };
+}
+
+function formatPaceMMSS(seconds) {
+  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "—";
+  const rounded = Math.round(seconds);
+  const minutes = Math.floor(rounded / 60);
+  const secs = rounded % 60;
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+
+function renderStats(stats) {
+  const main = document.querySelector(".page > main");
+  let footer = document.getElementById("stats-footer");
+  if (!footer) {
+    footer = document.createElement("footer");
+    footer.id = "stats-footer";
+    main.appendChild(footer);
+  }
+  footer.replaceChildren();
+
+  const items = [
+    { label: "Avg pace", value: formatPaceMMSS(stats.avgPace) },
+    {
+      label: "Total mileage",
+      value: `${stats.totalMileage.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`,
+    },
+    { label: "Activity count", value: stats.activityCount.toLocaleString() },
+    {
+      label: "Longest run",
+      value: stats.longestRun !== null
+        ? `${stats.longestRun.toLocaleString(undefined, { maximumFractionDigits: 2 })} km`
+        : "—",
+    },
+    { label: "Best pace", value: formatPaceMMSS(stats.bestPace) },
+  ];
+
+  for (const item of items) {
+    const card = document.createElement("div");
+    card.className = "stat-card";
+    const lbl = document.createElement("div");
+    lbl.className = "stat-label";
+    lbl.textContent = item.label;
+    const val = document.createElement("div");
+    val.className = "stat-value";
+    val.textContent = item.value;
+    card.appendChild(lbl);
+    card.appendChild(val);
+    footer.appendChild(card);
+  }
 }
 
 function buildTraces(chartData) {
@@ -367,6 +451,7 @@ function renderApp(chartData) {
     const layout = buildLayout(chartData, traces);
     Plotly.react(chartDiv, traces, layout, { responsive: true, displaylogo: false });
     updateSummary();
+    renderStats(computeStats(filterActivities(chartData)));
   }
 
   const years = chartData.monthly.by_year || {};
