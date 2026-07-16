@@ -3,6 +3,22 @@
 const appEl = document.getElementById("app");
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+const state = {
+  fromYear: null,
+  toYear: null,
+  bucket: "all",
+  showPace: true,
+  showDistance: true,
+  mode: "line",  // 'line' | 'bar'
+};
+
+function getYearlyValues(chartData, year) {
+  if (state.bucket === "all") {
+    return chartData.monthly.by_year[year];
+  }
+  return chartData.monthly.monthly_by_bucket[year][state.bucket];
+}
+
 async function init() {
   const res = await fetch("./data/garmin_activities.json");
   if (!res.ok) {
@@ -90,6 +106,32 @@ function renderApp(chartData) {
   const yearSelect = controlField("Year", "yearSelect");
   const monthSelect = controlField("Month", "monthSelect");
   const parameterSelect = controlField("Parameter", "parameterSelect", "parameter-field");
+
+  function renderBucketChips(chartData) {
+    const wrap = document.createElement("div");
+    wrap.className = "control-field";
+    const label = document.createElement("label");
+    label.textContent = "Distance";
+    wrap.appendChild(label);
+    const chips = document.createElement("div");
+    chips.className = "chip-group";
+    const buckets = ["all", ...chartData.meta.distance_buckets.filter(b => b !== "all")];
+    for (const b of buckets) {
+      const chip = document.createElement("button");
+      chip.textContent = b === "all" ? "All" : `${b} km`;
+      chip.className = "chip" + (state.bucket === b ? " chip-active" : "");
+      chip.addEventListener("click", () => {
+        state.bucket = b;
+        renderBucketChips(chartData);  // re-render to update active class
+        renderChart(chartData);
+      });
+      chips.appendChild(chip);
+    }
+    wrap.appendChild(chips);
+    return wrap;
+  }
+
+  controls.appendChild(renderBucketChips(chartData));
 
   const chartShell = document.createElement("div");
   chartShell.className = "chart-shell";
