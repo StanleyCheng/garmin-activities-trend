@@ -331,3 +331,17 @@
       z-index: 1000;
       max-width: calc(100% - 32px);
     }
+    .segmented {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .segmented button {
+      background: var(--panel);
+      border: 0;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .seg-active { background: var(--accent); color: #fff; }

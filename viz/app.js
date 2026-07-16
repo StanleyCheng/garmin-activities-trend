@@ -308,8 +308,38 @@ function renderApp(chartData) {
     return wrap;
   }
 
+  function renderModeToggle(chartData) {
+    const wrap = document.createElement("div");
+    wrap.className = "control-field";
+    const lbl = document.createElement("label");
+    lbl.textContent = "Chart";
+    wrap.appendChild(lbl);
+
+    const seg = document.createElement("div");
+    seg.className = "segmented";
+    for (const mode of ["line", "bar"]) {
+      const btn = document.createElement("button");
+      btn.textContent = mode === "line" ? "Line" : "Bar";
+      btn.className = state.mode === mode ? "seg-active" : "";
+      btn.addEventListener("click", () => {
+        state.mode = mode;
+        // Bar mode restricted to single year (PLAN §4.3)
+        if (mode === "bar" && state.fromYear !== state.toYear) {
+          const snapped = state.toYear;
+          state.fromYear = state.toYear = snapped;
+          showToast(`Bar mode shows one year — narrowed to ${snapped}.`);
+        }
+        renderChart();
+      });
+      seg.appendChild(btn);
+    }
+    wrap.appendChild(seg);
+    return wrap;
+  }
+
   controls.appendChild(renderBucketChips(chartData));
   controls.appendChild(renderYearRange(chartData));
+  controls.appendChild(renderModeToggle(chartData));
   warnOnLongRange();
 
   const chartShell = document.createElement("div");
