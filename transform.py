@@ -81,3 +81,69 @@ def to_bucket(distance_km):
         if distance_km < upper:
             return name
     return "40+"
+
+
+# Allow-rule keywords (matched as case-insensitive substring or equality)
+_RUN_KEYWORDS = ("run",)
+_WALK_KEYWORDS = ("walking", "walk")
+_HIKE_KEYWORDS = ("hiking", "hike")
+
+# Pace bands by activity class (seconds per km)
+_PACE_BANDS = {
+    "run":  (225, 900),
+    "walk": (225, 1500),
+    "hike": (225, 1800),
+}
+_DISTANCE_MIN_M = 500
+_DISTANCE_MAX_M = 200_000
+_DURATION_MIN_S = 60
+_DURATION_MAX_S = 12 * 3600
+_HR_MIN = 30
+_HR_MAX = 230
+
+
+def _activity_class(activity_type):
+    """Classify activity_type into 'run', 'walk', 'hike', or None (drop)."""
+    if not activity_type:
+        return None
+    t = activity_type.lower()
+    if any(k in t for k in _RUN_KEYWORDS):
+        return "run"
+    if any(k in t for k in _HIKE_KEYWORDS):
+        return "hike"
+    if any(k in t for k in _WALK_KEYWORDS):
+        return "walk"
+    return None
+
+
+def clean(activities):
+    """Apply drop rules in order. Returns (kept, dropped_by_reason)."""
+    kept, dropped_by_reason = [], {}
+
+    def _drop(reason):
+        dropped_by_reason[reason] = dropped_by_reason.get(reason, 0) + 1
+
+    for a in activities:
+        if a.get("date") is None:
+            _drop("date"); continue
+        cls = _activity_class(a.get("activity_type"))
+        if cls is None:
+            _drop("type"); continue
+        km = a.get("distance_km")
+        if km is None or km * 1000 < _DISTANCE_MIN_M or km * 1000 > _DISTANCE_MAX_M:
+            _drop("distance"); continue
+        dur = a.get("duration_s")
+        if dur is None or dur < _DURATION_MIN_S or dur > _DURATION_MAX_S:
+            _drop("duration"); continue
+        hr = a.get("avg_hr")
+        if hr is None or hr < _HR_MIN or hr > _HR_MAX:
+            _drop("hr"); continue
+        pace = a.get("pace_s_per_km")
+        if pace is None:
+            _drop("no_pace"); continue
+        lo, hi = _PACE_BANDS[cls]
+        if pace < lo or pace > hi:
+            _drop("pace"); continue
+        kept.append(a)
+
+    return kept, dropped_by_reason
