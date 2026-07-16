@@ -311,3 +311,23 @@
       color: #fff;
       border-color: var(--accent);
     }
+    .year-range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .year-range-row select { min-width: 92px; }
+    .toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--charcoal);
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+      z-index: 1000;
+      max-width: calc(100% - 32px);
+    }

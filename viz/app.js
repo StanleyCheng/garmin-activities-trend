@@ -1,5 +1,9 @@
 // viz/app.js — phase 2 baseline; phase 3 adds features.
 
+// Year-range control uses two side-by-side <select> boxes (choice b).
+// Swap to noUiSlider library when slider decision is finalized.
+const MAX_OVERLAY_YEARS = 6;
+
 const appEl = document.getElementById("app");
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -11,6 +15,25 @@ const state = {
   showDistance: true,
   mode: "line",  // 'line' | 'bar'
 };
+
+function showToast(msg) {
+  const existing = document.getElementById("year-range-toast");
+  if (existing) existing.remove();
+  const toast = document.createElement("div");
+  toast.id = "year-range-toast";
+  toast.className = "toast";
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function warnOnLongRange() {
+  if (state.fromYear === null || state.toYear === null) return;
+  const span = state.toYear - state.fromYear + 1;
+  if (span > 7) {
+    showToast(`Showing ${span} years; colors repeat. Recommended max ${MAX_OVERLAY_YEARS}.`);
+  }
+}
 
 function getYearlyValues(chartData, year) {
   if (state.bucket === "all") {
@@ -135,7 +158,61 @@ function renderApp(chartData) {
     return wrap;
   }
 
+  function renderYearRange(chartData) {
+    const years = chartData.meta.year_range;  // [min, max]
+    if (!years || !years.length) return document.createDocumentFragment();
+
+    // Initial state: full range
+    if (state.fromYear === null) {
+      state.fromYear = years[0];
+      state.toYear = years[1];
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "control-field";
+    const lbl = document.createElement("label");
+    lbl.textContent = "Year range";
+    wrap.appendChild(lbl);
+
+    // Two-select implementation (choice b)
+    const from = document.createElement("select");
+    const to = document.createElement("select");
+    for (let y = years[0]; y <= years[1]; y++) {
+      for (const sel of [from, to]) {
+        const opt = document.createElement("option");
+        opt.value = String(y);
+        opt.textContent = String(y);
+        sel.appendChild(opt);
+      }
+    }
+    from.value = String(state.fromYear);
+    to.value = String(state.toYear);
+
+    from.addEventListener("change", () => {
+      state.fromYear = Number(from.value);
+      if (state.fromYear > state.toYear) state.toYear = state.fromYear;
+      renderChart(chartData);
+      warnOnLongRange();
+    });
+    to.addEventListener("change", () => {
+      state.toYear = Number(to.value);
+      if (state.toYear < state.fromYear) state.fromYear = state.toYear;
+      renderChart(chartData);
+      warnOnLongRange();
+    });
+
+    const row = document.createElement("div");
+    row.className = "year-range-row";
+    row.appendChild(from);
+    row.appendChild(document.createTextNode("→"));
+    row.appendChild(to);
+    wrap.appendChild(row);
+    return wrap;
+  }
+
   controls.appendChild(renderBucketChips(chartData));
+  controls.appendChild(renderYearRange(chartData));
+  warnOnLongRange();
 
   const chartShell = document.createElement("div");
   chartShell.className = "chart-shell";
