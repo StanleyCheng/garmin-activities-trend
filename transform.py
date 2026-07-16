@@ -68,3 +68,16 @@ def normalize_activity(activity):
     out["vo2max"] = _safe_float(activity.get("vO2MaxValue"))
     out["activity_type"] = _activity_type_key(activity)
     return out
+
+
+BUCKET_NAMES = ("<3", "3-5", "5-10", "10-15", "15-25", "25-40", "40+")
+_BUCKET_UPPER_BOUNDS = (3, 5, 10, 15, 25, 40, float("inf"))
+
+
+def to_bucket(distance_km):
+    if distance_km is None:
+        return "all"
+    for upper, name in zip(_BUCKET_UPPER_BOUNDS, BUCKET_NAMES):
+        if distance_km < upper:
+            return name
+    return "40+"
