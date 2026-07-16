@@ -16,6 +16,40 @@ const state = {
   mode: "line",  // 'line' | 'bar'
 };
 
+function rangeInclusive(from, to) {
+  const result = [];
+  for (let y = from; y <= to; y++) result.push(y);
+  return result;
+}
+
+function formatSeconds(totalSeconds) {
+  if (totalSeconds === null || totalSeconds === undefined || Number.isNaN(totalSeconds)) {
+    return "";
+  }
+  const roundedSeconds = Math.round(totalSeconds);
+  const hours = Math.floor(roundedSeconds / 3600);
+  const minutes = Math.floor((roundedSeconds % 3600) / 60);
+  const seconds = roundedSeconds % 60;
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
+}
+
+function computeTightBounds(values, reversed) {
+  const present = values.filter((value) => typeof value === "number");
+  if (!present.length) return { range: [0, 1] };
+  const min = Math.min(...present);
+  const max = Math.max(...present);
+  const span = Math.max(max - min, 1);
+  const bottom = span * 0.02;
+  const top = span * 0.04;
+  const lo = min - bottom;
+  const hi = max + top;
+  return reversed
+    ? { range: [hi, lo] }
+    : { range: [lo, hi] };
+}
+
 function showToast(msg) {
   const existing = document.getElementById("year-range-toast");
   if (existing) existing.remove();
@@ -39,7 +73,89 @@ function getYearlyValues(chartData, year) {
   if (state.bucket === "all") {
     return chartData.monthly.by_year[year];
   }
-  return chartData.monthly.monthly_by_bucket[year][state.bucket];
+  const monthlyByBucket = chartData.monthly.monthly_by_bucket || chartData.monthly_by_bucket;
+  return monthlyByBucket?.[year]?.[state.bucket];
+}
+
+function buildTraces(chartData) {
+  const traces = [];
+  const years = rangeInclusive(state.fromYear, state.toYear);
+  const canInterpolateViridis = Plotly.d3 && typeof Plotly.d3.interpolateViridis === "function";
+  const palette = years.length <= 7 && canInterpolateViridis
+    ? years.map((_, i) => Plotly.d3.interpolateViridis(i / Math.max(1, years.length - 1)))
+    : years.map((_, i) => `hsl(${(i * 360) / Math.max(1, years.length)}, 60%, 50%)`);
+
+  for (let i = 0; i < years.length; i++) {
+    const year = years[i];
+    const values = getYearlyValues(chartData, String(year));
+    if (!values) continue;
+    const color = palette[i];
+
+    if (state.showPace) {
+      traces.push({
+        x: months,
+        y: values.pace_s_per_km,
+        name: `${year} — Pace`,
+        type: state.mode === "bar" ? "bar" : "scatter",
+        mode: state.mode === "bar" ? undefined : "lines+markers",
+        yaxis: "y2",
+        line: { color, width: 2.5 },
+        marker: { size: 6, color },
+        hovertemplate: "%{x}<br>%{customdata}<extra></extra>",
+        customdata: values.pace_s_per_km.map(formatSeconds),
+      });
+    }
+
+    if (state.showDistance) {
+      traces.push({
+        x: months,
+        y: values.distance_km_total,
+        name: `${year} — Distance`,
+        type: state.mode === "bar" ? "bar" : "scatter",
+        mode: state.mode === "bar" ? undefined : "lines+markers",
+        yaxis: "y",
+        line: { color, width: 2.5 },
+        marker: { size: 6, color },
+        hovertemplate: "%{x}<br>%{y:.2f} km<extra></extra>",
+      });
+    }
+  }
+  return traces;
+}
+
+function buildLayout(chartData, traces) {
+  const paceValues = traces
+    .filter((trace) => trace.yaxis === "y2")
+    .flatMap((trace) => trace.y || [])
+    .filter((value) => value !== null && value !== undefined);
+
+  const distValues = traces
+    .filter((trace) => trace.yaxis === "y")
+    .flatMap((trace) => trace.y || [])
+    .filter((value) => value !== null && value !== undefined);
+
+  return {
+    title: `Pace vs Distance · ${state.fromYear}–${state.toYear}`,
+    paper_bgcolor: "#ffffff",
+    plot_bgcolor: "#fbfbfb",
+    xaxis: { title: "", tickfont: { size: 11 } },
+    yaxis: {
+      title: "Distance (km)",
+      ...computeTightBounds(distValues, false),
+      autorange: false,
+    },
+    yaxis2: {
+      title: "Pace (mm:ss / km)",
+      ...computeTightBounds(paceValues, true),
+      autorange: false,
+      overlaying: "y",
+      side: "right",
+    },
+    barmode: state.mode === "bar" ? "overlay" : undefined,
+    showlegend: true,
+    margin: { l: 60, r: 60, t: 60, b: 40 },
+    hovermode: "x unified",
+  };
 }
 
 async function init() {
@@ -126,10 +242,6 @@ function renderApp(chartData) {
     return sel;
   }
 
-  const yearSelect = controlField("Year", "yearSelect");
-  const monthSelect = controlField("Month", "monthSelect");
-  const parameterSelect = controlField("Parameter", "parameterSelect", "parameter-field");
-
   function renderBucketChips(chartData) {
     const wrap = document.createElement("div");
     wrap.className = "control-field";
@@ -149,7 +261,7 @@ function renderApp(chartData) {
         for (const btn of chipButtons) {
           btn.classList.toggle("chip-active", btn === chip);
         }
-        renderChart(chartData);
+        renderChart();
       });
       chips.appendChild(chip);
       chipButtons.push(chip);
@@ -191,13 +303,13 @@ function renderApp(chartData) {
     from.addEventListener("change", () => {
       state.fromYear = Number(from.value);
       if (state.fromYear > state.toYear) state.toYear = state.fromYear;
-      renderChart(chartData);
+      renderChart();
       warnOnLongRange();
     });
     to.addEventListener("change", () => {
       state.toYear = Number(to.value);
       if (state.toYear < state.fromYear) state.fromYear = state.toYear;
-      renderChart(chartData);
+      renderChart();
       warnOnLongRange();
     });
 
@@ -222,231 +334,29 @@ function renderApp(chartData) {
   chartDiv.id = "chart";
   chartShell.appendChild(chartDiv);
 
-  // === Legacy chart logic (verbatim from garmin_activities_trend.html) ===
+  function updateSummary() {
+    const values = getYearlyValues(chartData, String(state.toYear));
+    const activityCounts = values?.activity_count || [];
+    let monthIndex = activityCounts.length - 1;
+    while (monthIndex >= 0 && !activityCounts[monthIndex]) monthIndex -= 1;
 
-  function populateSelect(selectElem, values) {
-    values.forEach((value) => {
-      const option = document.createElement("option");
-      if (Array.isArray(value)) {
-        option.value = value[0];
-        option.textContent = value[1];
-      } else {
-        option.value = value;
-        option.textContent = value;
-      }
-      selectElem.appendChild(option);
-    });
-  }
-
-  function getYLabel(parameter) {
-    if (parameter === "Avg Distance") {
-      return "Kilometers";
-    }
-    if (parameter === "Heart Rate" || parameter === "maxHR") {
-      return "Beats per minute";
-    }
-    if (parameter === "Pace") {
-      return "Seconds per km";
-    }
-    if (parameter === "Duration") {
-      return "Seconds";
-    }
-    if (parameter === "Calories") {
-      return "Calories";
-    }
-    if (parameter === "avgElevation" || parameter === "maxElevation") {
-      return "Elevation";
-    }
-    if (parameter === "MaxSpeed") {
-      return "Speed";
-    }
-    if (parameter === "Vo2maxvalue") {
-      return "VO2 max";
-    }
-    return parameter;
-  }
-
-  function isSecondsParameter(parameter) {
-    return parameter === "Pace" || parameter === "Duration";
-  }
-
-  function formatSeconds(totalSeconds) {
-    if (totalSeconds === null || totalSeconds === undefined || Number.isNaN(totalSeconds)) {
-      return "";
-    }
-    const roundedSeconds = Math.round(totalSeconds);
-    const hours = Math.floor(roundedSeconds / 3600);
-    const minutes = Math.floor((roundedSeconds % 3600) / 60);
-    const seconds = roundedSeconds % 60;
-    return [hours, minutes, seconds]
-      .map((value) => String(value).padStart(2, "0"))
-      .join(":");
-  }
-
-  function getSecondsTickConfig(yValues) {
-    const numericValues = yValues.filter((value) => value !== null && value !== undefined);
-    if (!numericValues.length) {
-      return {};
-    }
-
-    const minValue = Math.min(...numericValues);
-    const maxValue = Math.max(...numericValues);
-    if (minValue === maxValue) {
-      return {
-        tickmode: "array",
-        tickvals: [minValue],
-        ticktext: [formatSeconds(minValue)]
-      };
-    }
-
-    const tickCount = 5;
-    const step = (maxValue - minValue) / (tickCount - 1);
-    const tickvals = Array.from({ length: tickCount }, (_, index) => minValue + step * index);
-    return {
-      tickmode: "array",
-      tickvals,
-      ticktext: tickvals.map(formatSeconds)
-    };
-  }
-
-  function formatMileage(value) {
-    if (value === null || value === undefined || Number.isNaN(value)) {
-      return "0 km/mo";
-    }
-    return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`;
-  }
-
-  function updateSummary(year, monthIndex) {
-    const mileageValues = chartData.monthlyMileage[year] || [];
-    const activityCounts = chartData.monthlyActivityCounts[year] || [];
-    const selectedMileage = mileageValues[monthIndex] || 0;
-    const selectedActivityCount = activityCounts[monthIndex] || 0;
-
-    garminUser.textContent = chartData.garminUsername;
-    monthlyMileage.textContent = formatMileage(selectedMileage);
+    const selectedMileage = monthIndex >= 0 ? values.distance_km_total[monthIndex] || 0 : 0;
+    const selectedActivityCount = monthIndex >= 0 ? activityCounts[monthIndex] || 0 : 0;
+    monthlyMileage.textContent = `${selectedMileage.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`;
     monthlyActivities.textContent = selectedActivityCount.toLocaleString();
   }
 
-  function getLatestActiveMonthIndex(year) {
-    const activityCounts = chartData.monthlyActivityCounts[year] || [];
-    for (let index = activityCounts.length - 1; index >= 0; index -= 1) {
-      if (activityCounts[index] > 0) {
-        return index;
-      }
-    }
-    return new Date().getMonth();
-  }
-
-  function getChartMargin() {
-    if (window.matchMedia("(max-width: 420px)").matches) {
-      return { l: 40, r: 8, t: 34, b: 32 };
-    }
-    if (window.matchMedia("(max-width: 720px)").matches) {
-      return { l: 44, r: 10, t: 38, b: 34 };
-    }
-    return { l: 68, r: 28, t: 68, b: 56 };
-  }
-
-  function getTitleSize() {
-    return window.matchMedia("(max-width: 720px)").matches ? 14 : 20;
-  }
-
-  function getTickSize() {
-    return window.matchMedia("(max-width: 720px)").matches ? 10 : 12;
-  }
-
   function renderChart() {
-    const year = yearSelect.value;
-    const monthIndex = Number(monthSelect.value);
-    const parameter = parameterSelect.value;
-    const yValues = chartData.values[year][parameter];
-    const secondsParameter = isSecondsParameter(parameter);
-    const hoverValues = secondsParameter ? yValues.map(formatSeconds) : yValues;
-    const markerSizes = months.map((_, index) => index === monthIndex ? 12 : 8);
-    const markerColors = months.map((_, index) => index === monthIndex ? "#1aa7e8" : "#8a8a8a");
-
-    const trace = {
-      x: months,
-      y: yValues,
-      customdata: hoverValues,
-      type: "scatter",
-      mode: "lines+markers",
-      line: { color: "#171717", width: 3, shape: "spline", smoothing: 0.35 },
-      marker: {
-        size: markerSizes,
-        color: markerColors,
-        line: { color: "#ffffff", width: 2 }
-      },
-      fill: "tozeroy",
-      fillcolor: "rgba(26, 167, 232, 0.12)",
-      hovertemplate: secondsParameter
-        ? "%{x}<br>%{customdata}<extra></extra>"
-        : "%{x}<br>%{y:.2f}<extra></extra>"
-    };
-
-    const yAxisConfig = {
-      title: { text: getYLabel(parameter), font: { color: "#707070", family: "Helvetica Neue, Avenir Next, Segoe UI, sans-serif" } },
-      tickfont: { color: "#707070", size: getTickSize(), family: "Helvetica Neue, Avenir Next, Segoe UI, sans-serif" },
-      gridcolor: "rgba(0, 0, 0, 0.1)",
-      zerolinecolor: "rgba(0, 0, 0, 0.16)",
-      ...(secondsParameter ? getSecondsTickConfig(yValues) : {})
-    };
-
-    const layout = {
-      title: {
-        text: `${parameter} Trend in ${year}`,
-        x: 0,
-        xanchor: "left",
-        font: { size: getTitleSize(), color: "#151515", family: "Helvetica Neue, Avenir Next, Segoe UI, sans-serif" }
-      },
-      paper_bgcolor: "#ffffff",
-      plot_bgcolor: "#fbfbfb",
-      xaxis: {
-        title: "",
-        tickfont: { color: "#707070", size: getTickSize(), family: "Helvetica Neue, Avenir Next, Segoe UI, sans-serif" },
-        gridcolor: "rgba(0, 0, 0, 0.1)",
-        zeroline: false
-      },
-      yaxis: yAxisConfig,
-      shapes: [{
-        type: "line",
-        xref: "x",
-        yref: "paper",
-        x0: months[monthIndex],
-        x1: months[monthIndex],
-        y0: 0,
-        y1: 1,
-        line: { color: "rgba(26, 167, 232, 0.58)", width: 2, dash: "dot" }
-      }],
-      hovermode: "x unified",
-      margin: getChartMargin()
-    };
-
-    const config = {
-      responsive: true,
-      displaylogo: false,
-      modeBarButtonsToRemove: ["lasso2d", "select2d"]
-    };
-
-    Plotly.newPlot("chart", [trace], layout, config);
-    updateSummary(year, monthIndex);
+    const traces = buildTraces(chartData);
+    const layout = buildLayout(chartData, traces);
+    Plotly.react(chartDiv, traces, layout, { responsive: true, displaylogo: false });
+    updateSummary();
   }
 
-  activityCount.textContent = chartData.activityCount.toLocaleString();
-  yearCount.textContent = chartData.years.length.toLocaleString();
-  garminUser.textContent = chartData.garminUsername;
-  populateSelect(yearSelect, chartData.years);
-  populateSelect(monthSelect, months.map((month, index) => [index, month]));
-  populateSelect(parameterSelect, chartData.parameters);
-  yearSelect.value = chartData.years[chartData.years.length - 1];
-  monthSelect.value = String(getLatestActiveMonthIndex(yearSelect.value));
-  parameterSelect.value = chartData.parameters[0];
-  yearSelect.addEventListener("change", () => {
-    monthSelect.value = String(getLatestActiveMonthIndex(yearSelect.value));
-    renderChart();
-  });
-  monthSelect.addEventListener("change", renderChart);
-  parameterSelect.addEventListener("change", renderChart);
+  const years = chartData.monthly.by_year || {};
+  activityCount.textContent = (chartData.meta.activity_count_after_clean || 0).toLocaleString();
+  yearCount.textContent = Object.keys(years).length.toLocaleString();
+  garminUser.textContent = chartData.meta.garmin_username_masked || "";
   window.addEventListener("resize", () => Plotly.Plots.resize("chart"));
   window.addEventListener("orientationchange", () => {
     setTimeout(() => {
@@ -455,6 +365,7 @@ function renderApp(chartData) {
     }, 250);
   });
   renderChart();
+
 }
 
 window.addEventListener("DOMContentLoaded", init);
