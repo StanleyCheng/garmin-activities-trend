@@ -58,3 +58,16 @@ def test_build_monthly_by_bucket_partitions_correctly():
     # Bucket <3 should have zero count in 5-10 slot
     assert by_bucket["2024"]["<3"]["activity_count"][2] == 1
     assert by_bucket["2024"]["<3"]["activity_count"][3] == 0
+
+
+def test_build_monthly_by_bucket_empty_buckets_have_zero_arrays():
+    """A year with only one bucket populated should still return zero-filled arrays for the other buckets."""
+    activities = [_act(2024, 3, distance_km=10.0)]  # only one running activity in <3 or 5-10 depending on distance
+    out = build_monthly_by_bucket(activities)
+    # All 7 distance buckets + 'all' should be present
+    assert set(out["2024"].keys()) == {"<3", "3-5", "5-10", "10-15", "15-25", "25-40", "40+", "all"}
+    # Pick a bucket that doesn't have this activity (10 km is in '5-10', so '<3' is empty)
+    empty_bucket = out["2024"]["<3"]
+    assert empty_bucket is not None, "empty buckets should be zero-filled arrays, not None"
+    assert empty_bucket["activity_count"] == [0] * 12
+    assert empty_bucket["pace_s_per_km"] == [None] * 12
