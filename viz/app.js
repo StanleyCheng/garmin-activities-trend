@@ -140,7 +140,7 @@ function renderStats(stats) {
     {
       label: "Longest run",
       value: stats.longestRun !== null
-        ? `${stats.longestRun.toLocaleString(undefined, { maximumFractionDigits: 2 })} km`
+        ? `${stats.longestRun.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`
         : "—",
     },
     { label: "Best pace", value: formatPaceMMSS(stats.bestPace) },
