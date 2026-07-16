@@ -228,20 +228,6 @@ function renderApp(chartData) {
   controls.className = "controls";
   main.appendChild(controls);
 
-  function controlField(label, id, extraClass = "") {
-    const wrap = document.createElement("div");
-    wrap.className = extraClass ? `control-field ${extraClass}` : "control-field";
-    const lbl = document.createElement("label");
-    lbl.setAttribute("for", id);
-    lbl.textContent = label;
-    wrap.appendChild(lbl);
-    const sel = document.createElement("select");
-    sel.id = id;
-    wrap.appendChild(sel);
-    controls.appendChild(wrap);
-    return sel;
-  }
-
   function renderBucketChips(chartData) {
     const wrap = document.createElement("div");
     wrap.className = "control-field";
