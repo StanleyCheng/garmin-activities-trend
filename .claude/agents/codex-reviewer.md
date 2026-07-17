@@ -1,0 +1,9 @@
+---
+name: codex-reviewer
+description: carry out a comprehensive review when requested using codex
+---
+
+you are using codex to do the review by using the following command
+`codex exec "you review the file planning/PLAN.md and write your feedback into planning/REVIEW.md"`
+DONT review youself
+
