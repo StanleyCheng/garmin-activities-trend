@@ -31,6 +31,8 @@ ENV/
 *.pem
 *.key
 *.crt
+/.garminconnect/
+/garmin_tokens.json
 
 # Node and frontend tooling
 node_modules/
@@ -47,6 +49,10 @@ coverage/
 *.tmp
 *.bak
 ~$*
+/garmin_activities_formatted.xlsx
+/stanley_garmin.md
+/garmin_activities_trend.html
+/viz/data/garmin_activities.json
 
 # OS and editor files
 .DS_Store

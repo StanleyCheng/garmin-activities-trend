@@ -15,6 +15,24 @@ def test_normalize_basic_running(synthetic_activity):
     assert out["duration_s"] == 3000
 
 
+def test_normalize_uses_garmin_max_hr_field(synthetic_activity):
+    out = normalize_activity({**synthetic_activity, "maxHR": 178})
+    assert out["max_hr"] == 178
+
+
+@pytest.mark.parametrize(
+    "distance_m,expected_kept",
+    [(499.9, False), (500, True), (200_000, True), (200_000.1, False)],
+)
+def test_normalize_preserves_distance_cleaning_boundaries(
+    synthetic_activity, distance_m, expected_kept
+):
+    from transform import clean
+
+    kept, _ = clean([normalize_activity({**synthetic_activity, "distance": distance_m})])
+    assert bool(kept) is expected_kept
+
+
 def test_normalize_zero_speed_returns_none_pace(synthetic_activity):
     raw = {**synthetic_activity, "averageSpeed": 0}
     out = normalize_activity(raw)

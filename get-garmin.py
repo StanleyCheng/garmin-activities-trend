@@ -3,6 +3,7 @@
 Delegates to get_data, transform, and aggregate modules.
 """
 import argparse
+import logging
 import os
 import sys
 from datetime import datetime, timezone
@@ -13,13 +14,20 @@ except ModuleNotFoundError as exc:
     print(f"python-dotenv is required: {exc}", file=sys.stderr); sys.exit(1)
 
 from get_data import fetch_activities, get_client, DEFAULT_MAX_ACTIVITIES, DEFAULT_BATCH_SIZE
-from garminconnect import GarminConnectConnectionError, GarminConnectTooManyRequestsError
+from garminconnect import (
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectTooManyRequestsError,
+)
 from transform import normalize_activity, clean, format_public_username
 from aggregate import build_payload, save_payload, now_iso
 
 DEFAULT_OUTPUT_FILE = "garmin_activities_formatted.xlsx"
 DEFAULT_JSON_OUTPUT = "viz/data/garmin_activities.json"
 DEFAULT_CHART_OUTPUT_FILE = None  # deprecated; legacy inline HTML generation removed in Phase 2
+
+# The CLI reports concise, actionable failures instead of the client's strategy tracebacks.
+logging.getLogger("garminconnect").setLevel(logging.CRITICAL)
 
 
 def _positive_int(value):
@@ -121,6 +129,9 @@ def main(argv=None):
         return _run(args)
     except GarminConnectTooManyRequestsError as exc:
         print(f"Too many requests from Garmin Connect. Try again later. Details: {exc}", file=sys.stderr)
+        return 2
+    except GarminConnectAuthenticationError as exc:
+        print(f"Garmin authentication failed: {exc}", file=sys.stderr)
         return 2
     except GarminConnectConnectionError as exc:
         print(f"Error connecting to Garmin Connect: {exc}", file=sys.stderr)

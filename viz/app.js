@@ -34,19 +34,6 @@ function rangeInclusive(from, to) {
   return result;
 }
 
-function formatSeconds(totalSeconds) {
-  if (totalSeconds === null || totalSeconds === undefined || Number.isNaN(totalSeconds)) {
-    return "";
-  }
-  const roundedSeconds = Math.round(totalSeconds);
-  const hours = Math.floor(roundedSeconds / 3600);
-  const minutes = Math.floor((roundedSeconds % 3600) / 60);
-  const seconds = roundedSeconds % 60;
-  return [hours, minutes, seconds]
-    .map((value) => String(value).padStart(2, "0"))
-    .join(":");
-}
-
 function computeTightBounds(values, reversed) {
   const present = values.filter((value) => typeof value === "number");
   if (!present.length) return { range: [0, 1] };
@@ -170,26 +157,26 @@ function buildTraces(chartData) {
     if (!values) continue;
     const color = palette[i];
 
-    if (state.showPace) {
+    if (state.showPace && values.pace_s_per_km.some(Number.isFinite)) {
       traces.push({
         x: months,
         y: values.pace_s_per_km,
-        name: `${year} — Pace`,
+        name: `${year} Pace`,
         type: state.mode === "bar" ? "bar" : "scatter",
         mode: state.mode === "bar" ? undefined : "lines+markers",
         yaxis: "y2",
         line: { color, width: 2.5 },
         marker: { size: 6, color },
         hovertemplate: "%{x}<br>%{customdata}<extra></extra>",
-        customdata: values.pace_s_per_km.map(formatSeconds),
+        customdata: values.pace_s_per_km.map(formatPaceMMSS),
       });
     }
 
-    if (state.showDistance) {
+    if (state.showDistance && values.distance_km_total.some(Number.isFinite)) {
       traces.push({
         x: months,
         y: values.distance_km_total,
-        name: `${year} — Distance`,
+        name: `${year} Distance`,
         type: state.mode === "bar" ? "bar" : "scatter",
         mode: state.mode === "bar" ? undefined : "lines+markers",
         yaxis: "y",
@@ -202,7 +189,8 @@ function buildTraces(chartData) {
   return traces;
 }
 
-function buildLayout(chartData, traces) {
+function buildLayout(traces) {
+  const isNarrow = window.innerWidth <= 720;
   const paceValues = traces
     .filter((trace) => trace.yaxis === "y2")
     .flatMap((trace) => trace.y || [])
@@ -222,6 +210,7 @@ function buildLayout(chartData, traces) {
       title: "Distance (km)",
       ...computeTightBounds(distValues, false),
       autorange: false,
+      visible: distValues.length > 0,
     },
     yaxis2: {
       title: "Pace (mm:ss / km)",
@@ -229,27 +218,66 @@ function buildLayout(chartData, traces) {
       autorange: false,
       overlaying: "y",
       side: "right",
+      visible: paceValues.length > 0,
     },
     barmode: state.mode === "bar" ? "overlay" : undefined,
     showlegend: true,
-    margin: { l: 60, r: 60, t: 60, b: 40 },
+    legend: isNarrow ? {
+      orientation: "h",
+      x: 0,
+      y: -0.14,
+      xanchor: "left",
+      yanchor: "top",
+      font: { size: 10 },
+    } : undefined,
+    margin: isNarrow
+      ? { l: 52, r: 52, t: 60, b: 95 }
+      : { l: 60, r: 60, t: 60, b: 40 },
     hovermode: "x unified",
+    annotations: traces.length ? [] : [{
+      text: "No data for this selection",
+      x: 0.5,
+      y: 0.5,
+      xref: "paper",
+      yref: "paper",
+      showarrow: false,
+    }],
   };
 }
 
+function showError(message) {
+  const banner = document.createElement("div");
+  banner.className = "banner banner-error";
+  banner.textContent = message;
+  appEl.replaceChildren(banner);
+}
+
 async function init() {
-  const res = await fetch("./data/garmin_activities.json");
+  let res;
+  try {
+    res = await fetch("./data/garmin_activities.json", { cache: "no-store" });
+  } catch (e) {
+    showError(`Unable to load Garmin data: ${e.message}`);
+    return;
+  }
   if (!res.ok) {
-    appEl.innerHTML = `<div class="banner banner-error">
-      Run <code>uv run python get-garmin.py</code> to refresh data.
-    </div>`;
+    showError("Run `uv run python get-garmin.py` to create or refresh the dashboard data.");
     return;
   }
   let chartData;
   try {
     chartData = await res.json();
   } catch (e) {
-    appEl.innerHTML = `<div class="banner banner-error">Corrupt JSON: ${e.message}</div>`;
+    showError(`Corrupt Garmin data: ${e.message}`);
+    return;
+  }
+  if (!chartData.meta?.year_range?.length || !chartData.monthly?.by_year
+      || !Array.isArray(chartData.activities)) {
+    showError("The Garmin data file has no chartable activities.");
+    return;
+  }
+  if (typeof Plotly === "undefined") {
+    showError("Plotly could not be loaded. Check the network connection and reload.");
     return;
   }
   renderApp(chartData);
@@ -306,6 +334,7 @@ function renderApp(chartData) {
   const controls = document.createElement("div");
   controls.className = "controls";
   main.appendChild(controls);
+  const yearSelects = { from: null, to: null };
 
   function renderBucketChips(chartData) {
     const wrap = document.createElement("div");
@@ -364,16 +393,24 @@ function renderApp(chartData) {
     }
     from.value = String(state.fromYear);
     to.value = String(state.toYear);
+    yearSelects.from = from;
+    yearSelects.to = to;
 
     from.addEventListener("change", () => {
       state.fromYear = Number(from.value);
-      if (state.fromYear > state.toYear) state.toYear = state.fromYear;
+      if (state.fromYear > state.toYear) {
+        state.toYear = state.fromYear;
+        to.value = from.value;
+      }
       renderChart();
       warnOnLongRange();
     });
     to.addEventListener("change", () => {
       state.toYear = Number(to.value);
-      if (state.toYear < state.fromYear) state.fromYear = state.toYear;
+      if (state.toYear < state.fromYear) {
+        state.fromYear = state.toYear;
+        from.value = to.value;
+      }
       renderChart();
       warnOnLongRange();
     });
@@ -396,28 +433,63 @@ function renderApp(chartData) {
 
     const seg = document.createElement("div");
     seg.className = "segmented";
+    const buttons = [];
     for (const mode of ["line", "bar"]) {
       const btn = document.createElement("button");
       btn.textContent = mode === "line" ? "Line" : "Bar";
       btn.className = state.mode === mode ? "seg-active" : "";
       btn.addEventListener("click", () => {
         state.mode = mode;
+        for (const button of buttons) {
+          button.classList.toggle("seg-active", button === btn);
+        }
         // Bar mode restricted to single year (PLAN §4.3)
         if (mode === "bar" && state.fromYear !== state.toYear) {
           const snapped = state.toYear;
           state.fromYear = state.toYear = snapped;
+          yearSelects.from.value = String(snapped);
+          yearSelects.to.value = String(snapped);
           showToast(`Bar mode shows one year — narrowed to ${snapped}.`);
         }
         renderChart();
       });
       seg.appendChild(btn);
+      buttons.push(btn);
     }
     wrap.appendChild(seg);
     return wrap;
   }
 
+  function renderMetricToggles() {
+    const wrap = document.createElement("div");
+    wrap.className = "control-field";
+    const heading = document.createElement("label");
+    heading.textContent = "Metrics";
+    wrap.appendChild(heading);
+
+    const toggles = document.createElement("div");
+    toggles.className = "metric-toggles";
+    for (const [key, text] of [["showPace", "Pace"], ["showDistance", "Distance"]]) {
+      const label = document.createElement("label");
+      label.className = "metric-toggle";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = state[key];
+      checkbox.addEventListener("change", () => {
+        state[key] = checkbox.checked;
+        renderChart();
+      });
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(text));
+      toggles.appendChild(label);
+    }
+    wrap.appendChild(toggles);
+    return wrap;
+  }
+
   controls.appendChild(renderBucketChips(chartData));
   controls.appendChild(renderYearRange(chartData));
+  controls.appendChild(renderMetricToggles());
   controls.appendChild(renderModeToggle(chartData));
   warnOnLongRange();
 
@@ -447,7 +519,7 @@ function renderApp(chartData) {
 
   function renderChart() {
     const traces = buildTraces(chartData);
-    const layout = buildLayout(chartData, traces);
+    const layout = buildLayout(traces);
     Plotly.react(chartDiv, traces, layout, { responsive: true, displaylogo: false });
     updateSummary();
     renderStats(computeStats(filterActivities(chartData)));
@@ -457,11 +529,11 @@ function renderApp(chartData) {
   activityCount.textContent = (chartData.meta.activity_count_after_clean || 0).toLocaleString();
   yearCount.textContent = Object.keys(years).length.toLocaleString();
   garminUser.textContent = chartData.meta.garmin_username_masked || "";
-  window.addEventListener("resize", () => Plotly.Plots.resize("chart"));
+  window.addEventListener("resize", () => Plotly.Plots.resize(chartDiv));
   window.addEventListener("orientationchange", () => {
     setTimeout(() => {
       renderChart();
-      Plotly.Plots.resize("chart");
+      Plotly.Plots.resize(chartDiv);
     }, 250);
   });
   renderChart();

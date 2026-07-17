@@ -72,8 +72,10 @@ def build_monthly(activities):
 def build_monthly_by_bucket(activities):
     """Partition first by year, then by bucket, then aggregate."""
     out = {}
-    for yr_data in build_monthly(activities).keys():
+    monthly = build_monthly(activities)
+    for yr_data, all_values in monthly.items():
         out[yr_data] = {b: _empty_year() for b in (*BUCKET_NAMES, "all")}
+        out[yr_data]["all"] = all_values
         by_bucket = defaultdict(list)
         for a in activities:
             if str(a.get("year")) != yr_data:

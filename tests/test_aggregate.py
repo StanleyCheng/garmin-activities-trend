@@ -71,3 +71,4 @@ def test_build_monthly_by_bucket_empty_buckets_have_zero_arrays():
     assert empty_bucket is not None, "empty buckets should be zero-filled arrays, not None"
     assert empty_bucket["activity_count"] == [0] * 12
     assert empty_bucket["pace_s_per_km"] == [None] * 12
+    assert out["2024"]["all"]["activity_count"][2] == 1

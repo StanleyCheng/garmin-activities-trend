@@ -55,14 +55,15 @@ def normalize_activity(activity):
     out["month"] = dt.month if dt else None
 
     distance_m = _safe_float(activity.get("distance"))
-    out["distance_km"] = round(distance_m / 1000, 2) if distance_m is not None else None
+    # Keep full precision so cleaning can enforce the raw-metre boundaries.
+    out["distance_km"] = distance_m / 1000 if distance_m is not None else None
 
     speed = _safe_float(activity.get("averageSpeed"))
     out["pace_s_per_km"] = round(1000 / speed, 2) if speed and speed > 0 else None
 
     out["duration_s"] = _safe_int(activity.get("duration"))
     out["avg_hr"] = _safe_int(activity.get("averageHR"))
-    out["max_hr"] = _safe_int(activity.get("maxHeartRate"))
+    out["max_hr"] = _safe_int(activity.get("maxHR", activity.get("maxHeartRate")))
     out["calories"] = _safe_int(activity.get("calories"))
     out["elevation_m"] = _safe_float(activity.get("elevationGain"))
     out["vo2max"] = _safe_float(activity.get("vO2MaxValue"))
