@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Garmin Dashboard · Codebase Map</title>
+  <style>
+    :root { --ink:#172033; --muted:#667085; --paper:#f7f8fc; --panel:#fff; --line:#dce2ed; --blue:#246bfe; --teal:#0a9e95; --orange:#f08a24; --violet:#7458e8; --shadow:0 14px 35px rgba(22,34,56,.08); }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button { font:inherit; }
+    .shell { width:min(1220px, calc(100% - 32px)); margin:auto; }
+    .hero { color:#fff; background:radial-gradient(circle at 86% 10%, #3985ff 0, transparent 28%), linear-gradient(122deg,#111a30 0%,#172b56 57%,#143a6f 100%); padding:55px 0 38px; overflow:hidden; }
+    .eyebrow { margin:0 0 10px; color:#a9c9ff; font-size:.75rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+    h1 { max-width:800px; margin:0; font-size:clamp(2.2rem,5vw,4.5rem); letter-spacing:-.055em; line-height:1; }
+    .hero-copy { max-width:710px; margin:18px 0 0; color:#d6e4ff; font-size:1.05rem; }
+    .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:32px; }
+    .metric { padding:14px 15px; border:1px solid rgba(255,255,255,.16); border-radius:14px; background:rgba(255,255,255,.07); }
+    .metric strong { display:block; font-size:1.45rem; line-height:1.1; }.metric span { color:#cbdcff; font-size:.82rem; }
+    main { padding:30px 0 58px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+    .tab { padding:9px 13px; color:#475467; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; }.tab:hover,.tab:focus-visible { border-color:var(--blue); color:var(--blue); outline:none; }.tab.active { color:#fff; border-color:var(--blue); background:var(--blue); }
+    .view { display:none; }.view.active { display:block; }
+    .section-heading { display:flex; justify-content:space-between; gap:20px; align-items:end; margin:0 0 15px; }.section-heading h2 { margin:0; font-size:1.28rem; letter-spacing:-.025em; }.section-heading p { max-width:590px; margin:0; color:var(--muted); font-size:.9rem; }
+    .architecture { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; align-items:start; }
+    .diagram { position:relative; min-height:635px; padding:22px; border:1px solid var(--line); border-radius:19px; background:linear-gradient(180deg,#fff,#fbfcff); box-shadow:var(--shadow); overflow:hidden; }
+    .flow { position:absolute; inset:0; z-index:0; width:100%; height:100%; pointer-events:none; }.flow path { fill:none; stroke:#bcc7d9; stroke-width:1.8; stroke-dasharray:5 6; }.flow .analysis-path { stroke:#f1a24c; }.flow .test-path { stroke:#9e92ef; }.flow text { fill:#7a8598; font-size:12px; font-weight:600; }
+    .lane { position:relative; z-index:1; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }.lane-label { grid-column:1/-1; margin:0 0 -4px; color:#8a94a5; font-size:.7rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .node { position:relative; min-height:98px; padding:12px; text-align:left; border:1px solid var(--line); border-radius:13px; background:var(--panel); box-shadow:0 6px 15px rgba(31,47,75,.055); cursor:pointer; transition:.17s transform,.17s border-color,.17s box-shadow; }.node:hover,.node:focus-visible,.node.selected { border-color:var(--node); box-shadow:0 9px 22px color-mix(in srgb,var(--node) 19%,transparent); transform:translateY(-2px); outline:none; }.node::before { position:absolute; top:0; left:0; width:100%; height:4px; content:""; border-radius:13px 13px 0 0; background:var(--node); }.node .kind { display:block; margin-bottom:5px; color:var(--node); font-size:.67rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }.node strong { display:block; font-size:.92rem; }.node small { display:block; margin-top:4px; color:var(--muted); font-size:.72rem; line-height:1.32; }.cli { --node:var(--blue); }.fetch { --node:#1478a6; }.transform { --node:var(--teal); }.aggregate { --node:#137c74; }.output { --node:var(--orange); }.dashboard { --node:var(--violet); }.analysis { --node:#e07718; }.test { --node:#876eea; }.external { --node:#73809a; }
+    .source { grid-column:1; }.cli-node { grid-column:2; }.dashboard-node { grid-column:4; }.fetch-node { grid-column:1; }.transform-node { grid-column:2; }.aggregate-node { grid-column:3; }.json-node { grid-column:4; }.xlsx-node { grid-column:3; }.analysis-node { grid-column:4; }.tests-node { grid-column:1/3; }
+    .inspector { position:sticky; top:16px; padding:19px; border:1px solid var(--line); border-radius:19px; background:#fff; box-shadow:var(--shadow); }.inspector .label { margin:0 0 5px; color:var(--blue); font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }.inspector h3 { margin:0; font-size:1.22rem; letter-spacing:-.025em; }.inspector p { margin:10px 0; color:var(--muted); }.inspector dl { margin:15px 0 0; }.inspector dt { margin-top:10px; color:#8a94a5; font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }.inspector dd { margin:2px 0 0; color:#34405a; font-size:.86rem; }.inspector code,.code { padding:.12em .35em; border-radius:5px; color:#2f3d58; background:#eef2f8; font-family:"SFMono-Regular",Consolas,monospace; font-size:.83em; }
+    .note { margin-top:18px; padding:12px 14px; border-left:4px solid var(--orange); border-radius:0 10px 10px 0; color:#81501d; background:#fff8ef; font-size:.87rem; }
+    .surface-grid,.common-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; }.surface-card,.common-card { padding:18px; border:1px solid var(--line); border-radius:16px; background:#fff; box-shadow:0 7px 20px rgba(31,47,75,.045); }.surface-card h3,.common-card h3 { margin:0; font-size:1rem; }.surface-card p,.common-card p { margin:8px 0 0; color:var(--muted); font-size:.88rem; }.tag { display:inline-block; margin:12px 5px 0 0; padding:3px 8px; color:#38507a; border:1px solid #d8e2f3; border-radius:999px; background:#f5f8fd; font-size:.73rem; }
+    .tree { padding:20px; border:1px solid var(--line); border-radius:18px; background:#17223a; color:#d9e5fb; box-shadow:var(--shadow); font:13px/1.75 "SFMono-Regular",Consolas,monospace; white-space:pre-wrap; }.tree b { color:#8bb4ff; }.tree .muted { color:#94a6c5; }.tree .warning { color:#ffc16b; }
+    .shared-table { width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid var(--line); border-radius:15px; background:#fff; box-shadow:var(--shadow); }.shared-table th,.shared-table td { padding:13px 15px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); }.shared-table tr:last-child td { border-bottom:0; }.shared-table th { color:#64748b; background:#f8faff; font-size:.73rem; letter-spacing:.08em; text-transform:uppercase; }.shared-table td { font-size:.88rem; }.status { display:inline-block; padding:3px 7px; border-radius:999px; font-size:.72rem; font-weight:700; }.yes { color:#076a55; background:#dcf7ee; }.mirror { color:#835817; background:#fff0d8; }.gap { color:#74529e; background:#f0e8ff; }
+    .footer { margin-top:26px; color:#77839a; font-size:.8rem; text-align:center; }
+    @media (max-width:900px) { .architecture { grid-template-columns:1fr; }.inspector { position:static; }.surface-grid,.common-grid { grid-template-columns:1fr 1fr; }.diagram { min-height:0; }.flow { display:none; }.lane { grid-template-columns:repeat(2,1fr); }.source,.cli-node,.dashboard-node,.fetch-node,.transform-node,.aggregate-node,.json-node,.xlsx-node,.analysis-node,.tests-node { grid-column:auto; } }
+    @media (max-width:600px) { .shell { width:min(100% - 22px,1220px); }.hero { padding-top:35px; }.metrics,.surface-grid,.common-grid { grid-template-columns:1fr 1fr; }.section-heading { display:block; }.section-heading p { margin-top:7px; }.shared-table { display:block; overflow-x:auto; }.lane { grid-template-columns:1fr; }.metrics .metric:last-child { grid-column:1/-1; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <p class="eyebrow">Repository guide · Garmin activity dashboard</p>
+      <h1>From Garmin data to two ways of seeing it.</h1>
+      <p class="hero-copy">This map follows the actual production paths: fetch and clean activity data, build exports, then render either the browser dashboard or a local static chart. Select a box to inspect its responsibility and connections.</p>
+      <div class="metrics" aria-label="Codebase summary">
+        <div class="metric"><strong>4</strong><span>core pipeline modules</span></div>
+        <div class="metric"><strong>2</strong><span>generated export formats</span></div>
+        <div class="metric"><strong>2</strong><span>visualization surfaces</span></div>
+        <div class="metric"><strong>7</strong><span>focused test modules</span></div>
+      </div>
+    </div>
+  </header>
+  <main class="shell">
+    <nav class="tabs" aria-label="Architecture views">
+      <button class="tab active" data-view="flow" type="button">Data flow</button>
+      <button class="tab" data-view="surfaces" type="button">Runtime surfaces</button>
+      <button class="tab" data-view="shared" type="button">Common components</button>
+      <button class="tab" data-view="tree" type="button">File structure</button>
+    </nav>
+
+    <section class="view active" id="flow">
+      <div class="section-heading"><h2>Production data flow</h2><p>Solid-path components make the normal refresh and dashboard route. Orange is the local analysis branch; purple is the safety net that verifies pure modules and data contracts.</p></div>
+      <div class="architecture">
+        <div class="diagram" aria-label="Interactive production data-flow diagram">
+          <svg class="flow" viewBox="0 0 900 635" aria-hidden="true" preserveAspectRatio="none">
+            <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#bcc7d9"/></marker><marker id="orange-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#f1a24c"/></marker><marker id="violet-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#9e92ef"/></marker></defs>
+            <path d="M222 128 H300" marker-end="url(#arrow)"/><path d="M448 128 H526" marker-end="url(#arrow)"/><path d="M674 128 H752" marker-end="url(#arrow)"/>
+            <path d="M222 304 H300" marker-end="url(#arrow)"/><path d="M448 304 H526" marker-end="url(#arrow)"/><path d="M674 304 H752" marker-end="url(#arrow)"/>
+            <path d="M674 304 V415 H570" marker-end="url(#arrow)"/><path class="analysis-path" d="M674 455 H752" marker-end="url(#orange-arrow)"/><path class="test-path" d="M222 562 C350 525, 490 525, 638 530" marker-end="url(#violet-arrow)"/>
+            <text x="454" y="114">raw activities</text><text x="458" y="290">normalized records</text><text x="680" y="402">JSON request</text>
+          </svg>
+          <div class="lane">
+            <p class="lane-label">Inputs &amp; orchestration</p>
+            <button class="node external source" data-node="garmin" type="button"><span class="kind">External API</span><strong>Garmin Connect</strong><small>activity pages, auth and tokens</small></button>
+            <button class="node cli cli-node" data-node="cli" type="button"><span class="kind">CLI entry</span><strong>get-garmin.py</strong><small>credentials · arguments · coordinates the refresh</small></button>
+            <button class="node external" data-node="env" type="button"><span class="kind">Configuration</span><strong>.env / token store</strong><small>credentials stay outside exports</small></button>
+            <button class="node dashboard dashboard-node" data-node="viz" type="button"><span class="kind">Static UI</span><strong>viz/index.html</strong><small>loads the dashboard shell and Plotly CDN</small></button>
+          </div>
+          <div class="lane">
+            <p class="lane-label">Pipeline &amp; dashboard</p>
+            <button class="node fetch fetch-node" data-node="fetch" type="button"><span class="kind">Fetch module</span><strong>get_data.py</strong><small>login · token reuse · pagination · retry</small></button>
+            <button class="node transform transform-node" data-node="transform" type="button"><span class="kind">Transform module</span><strong>transform.py</strong><small>normalize · validate · filter · bucket</small></button>
+            <button class="node aggregate aggregate-node" data-node="aggregate" type="button"><span class="kind">Aggregate module</span><strong>aggregate.py</strong><small>monthly totals · bucket totals · JSON payload</small></button>
+            <button class="node dashboard json-node" data-node="app" type="button"><span class="kind">UI controller</span><strong>viz/app.js + styles.css</strong><small>fetches JSON · filters · builds Plotly traces</small></button>
+          </div>
+          <div class="lane">
+            <p class="lane-label">Exports, alternate analysis &amp; verification</p>
+            <button class="node output xlsx-node" data-node="xlsx" type="button"><span class="kind">Export</span><strong>Excel workbook</strong><small>garmin_activities_formatted.xlsx</small></button>
+            <button class="node output" data-node="json" type="button"><span class="kind">Export</span><strong>Dashboard JSON</strong><small>viz/data/garmin_activities.json</small></button>
+            <button class="node analysis analysis-node" data-node="analysis" type="button"><span class="kind">Local report</span><strong>run-analysis.py</strong><small>pandas · seaborn · matplotlib image/chart</small></button>
+            <button class="node test tests-node" data-node="tests" type="button"><span class="kind">Tests</span><strong>tests/</strong><small>normalization, cleaning, buckets, aggregation, payloads and fetch paging</small></button>
+          </div>
+        </div>
+        <aside class="inspector" id="inspector" aria-live="polite"></aside>
+      </div>
+      <p class="note"><strong>Deployment boundary:</strong> Netlify publishes <code>viz/</code> only. This repository map lives at the root for local documentation, so it does not replace the deployed Garmin dashboard.</p>
+    </section>
+
+    <section class="view" id="surfaces">
+      <div class="section-heading"><h2>Four runtime surfaces</h2><p>The project is deliberately split into a fetch pipeline, a static dashboard, a local chart route, and a small unrelated API experiment.</p></div>
+      <div class="surface-grid">
+        <article class="surface-card"><h3>Refresh command</h3><p><code>get-garmin.py</code> is the only production entry point. It turns credentials and Garmin API pages into normalized records plus both exports.</p><span class="tag">Python</span><span class="tag">Garmin Connect</span><span class="tag">Excel + JSON</span></article>
+        <article class="surface-card"><h3>Browser dashboard</h3><p><code>viz/</code> is a no-build static app: HTML provides the mount point, JavaScript reads the generated JSON, CSS defines the responsive UI, and Plotly renders the chart.</p><span class="tag">ES modules</span><span class="tag">Plotly CDN</span><span class="tag">Netlify</span></article>
+        <article class="surface-card"><h3>Local analysis</h3><p><code>run-analysis.py</code> reads the Excel export back in, filters running records, groups monthly metrics, and displays or saves a traditional chart.</p><span class="tag">pandas</span><span class="tag">seaborn</span><span class="tag">matplotlib</span></article>
+        <article class="surface-card"><h3>Tests</h3><p>Tests focus on the reusable Python logic: raw Garmin shapes, cleaning boundaries, page retrieval, monthly rollups, bucket partitions, and serialized payloads.</p><span class="tag">pytest</span><span class="tag">synthetic fixtures</span></article>
+        <article class="surface-card"><h3>Configuration</h3><p><code>pyproject.toml</code> defines the Python runtime and packages. <code>requirements*.txt</code> are alternate dependency lists. <code>netlify.toml</code> publishes <code>viz/</code>.</p><span class="tag">uv</span><span class="tag">Python 3.14+</span></article>
+        <article class="surface-card"><h3>Standalone experiment</h3><p><code>Test-nvidia.py</code> sends one streamed prompt through NVIDIA's OpenAI-compatible endpoint. It is not imported by, or connected to, the Garmin pipeline.</p><span class="tag">OpenAI client</span><span class="tag">separate concern</span></article>
+      </div>
+    </section>
+
+    <section class="view" id="shared">
+      <div class="section-heading"><h2>Shared components &amp; boundaries</h2><p>The strongest reuse is in the pure transformation and aggregation layer. A few concepts are intentionally mirrored or currently duplicated across the two display routes.</p></div>
+      <table class="shared-table">
+        <thead><tr><th>Component / concern</th><th>Used by</th><th>Relationship</th><th>State</th></tr></thead>
+        <tbody>
+          <tr><td><code>normalize_activity()</code> + <code>clean()</code></td><td>CLI pipeline; unit tests</td><td>One canonical schema and validation gate before any export exists.</td><td><span class="status yes">Shared source</span></td></tr>
+          <tr><td><code>to_bucket()</code> + <code>BUCKET_NAMES</code></td><td><code>aggregate.py</code>; tests</td><td>Python is the source of truth for bucket definitions and monthly bucket output.</td><td><span class="status yes">Shared source</span></td></tr>
+          <tr><td>Distance bucketing in <code>app.js</code></td><td>Browser filtering</td><td><code>toBucketClient()</code> mirrors Python bucket boundaries so the client can filter individual activities.</td><td><span class="status mirror">Intentional mirror</span></td></tr>
+          <tr><td>Monthly metrics</td><td><code>aggregate.py</code>; <code>run-analysis.py</code></td><td>Both calculate per-month distance, pace and heart-rate views, but each owns its own implementation and output format.</td><td><span class="status gap">Parallel logic</span></td></tr>
+          <tr><td>Dependency declarations</td><td><code>pyproject.toml</code>; <code>requirements.txt</code>; <code>requirements-garmin.txt</code></td><td>They list overlapping packages. The README directs new setup through <code>uv sync</code>.</td><td><span class="status gap">Multiple manifests</span></td></tr>
+          <tr><td>Credentials and private activity data</td><td><code>.env</code>; token store; generated exports</td><td>Ignored by Git; the dashboard JSON itself contains personal activity information and is generated locally.</td><td><span class="status yes">Protected boundary</span></td></tr>
+        </tbody>
+      </table>
+      <div class="common-grid" style="margin-top:16px">
+        <article class="common-card"><h3>Clean hand-off</h3><p>The normalized activity dictionary is the central contract: dates, distance, pace, duration, HR, elevation, VO₂ max, calories and activity type. Everything downstream consumes that cleaned record.</p></article>
+        <article class="common-card"><h3>Two output contracts</h3><p>The Excel file preserves rows for offline analysis. The JSON payload adds metadata and precomputed monthly summaries so the dashboard can remain static and fast.</p></article>
+        <article class="common-card"><h3>Where reuse stops</h3><p>The browser intentionally has no Python runtime, so it cannot call the shared Python helpers. The small JS bucket mirror is the practical no-build trade-off.</p></article>
+      </div>
+    </section>
+
+    <section class="view" id="tree">
+      <div class="section-heading"><h2>Repository structure</h2><p>Grouped by responsibility rather than every generated or private local file.</p></div>
+      <div class="tree"><b>garmin2/</b>
+├── <b>get-garmin.py</b>              <span class="muted"># CLI composition root; writes Excel + JSON</span>
+├── <b>get_data.py</b>                <span class="muted"># Garmin authentication, token reuse, pagination, retry</span>
+├── <b>transform.py</b>               <span class="muted"># raw activity → normalized record → clean record / bucket</span>
+├── <b>aggregate.py</b>               <span class="muted"># monthly rollups and dashboard payload serialization</span>
+├── <b>run-analysis.py</b>            <span class="muted"># Excel → local pandas/seaborn/matplotlib chart</span>
+├── <span class="warning">Test-nvidia.py</span>             <span class="muted"># isolated NVIDIA/OpenAI-compatible experiment</span>
+├── <b>viz/</b>                       <span class="muted"># Netlify publish directory</span>
+│   ├── <b>index.html</b>             <span class="muted"># dashboard document + Plotly CDN</span>
+│   ├── <b>app.js</b>                 <span class="muted"># dashboard state, filtering, Plotly traces</span>
+│   ├── <b>styles.css</b>             <span class="muted"># dashboard presentation and responsive layout</span>
+│   └── data/garmin_activities.json  <span class="muted"># generated; Git-ignored</span>
+├── <b>tests/</b>                     <span class="muted"># pytest checks for pipeline contracts</span>
+├── <b>planning/</b> + <b>docs/</b>            <span class="muted"># design history and implementation plan</span>
+├── pyproject.toml / uv.lock          <span class="muted"># primary dependency setup</span>
+├── requirements*.txt                 <span class="muted"># alternate package lists</span>
+└── netlify.toml                      <span class="muted"># publish = viz</span>
+
+<span class="muted">Private / generated items deliberately omitted: .env, Garmin token store, Excel exports, activity markdown export, virtual environment and Git metadata.</span></div>
+    </section>
+    <p class="footer">Architecture reflects the checked-in code and repository instructions. Open this file directly in a browser; it has no dependencies or build step.</p>
+  </main>
+  <script>
+    const nodeData = {
+      garmin: { label: "External input", title: "Garmin Connect", text: "The only remote data source in the production path. get_data.py creates the client, authenticates with a reusable token store, then requests activity pages.", reads: "Credentials and token directory", writes: "Raw activity dictionaries" },
+      env: { label: "Private configuration", title: ".env and token store", text: "GARMIN_USERNAME and GARMIN_PASSWORD are loaded by the CLI. Garmin refresh tokens live separately, defaulting to ~/.garminconnect. Both stay out of source control.", reads: "Local environment", writes: "Authentication inputs" },
+      cli: { label: "Composition root", title: "get-garmin.py", text: "Parses command-line arguments, finds credentials, catches user-facing Garmin errors, and wires the three pipeline modules together. It also owns Excel workbook writing.", reads: "Arguments, .env, raw activities", writes: "Excel export, JSON payload" },
+      fetch: { label: "Fetch layer", title: "get_data.py", text: "Owns Garmin client login, secure token-file permissions, activity pagination and exponential retry on transient Garmin connection or rate-limit errors.", reads: "Credentials, Garmin API", writes: "A list of raw activities" },
+      transform: { label: "Pure transform layer", title: "transform.py", text: "Converts Garmin’s variable raw shape into a stable activity schema, classifies activity type, applies quality rules in order, and assigns distance buckets.", reads: "Raw activity dictionaries", writes: "Kept records and drop-reason counts" },
+      aggregate: { label: "Pure aggregation layer", title: "aggregate.py", text: "Builds complete year/month arrays, partitions those arrays by distance bucket, adds metadata, and serializes the JSON payload. Its helpers are directly covered by tests.", reads: "Cleaned activity records", writes: "Dashboard payload" },
+      xlsx: { label: "Row-oriented export", title: "garmin_activities_formatted.xlsx", text: "A workbook containing the cleaned activity rows. It preserves the alternate local-analysis route and can be opened independently of the dashboard.", reads: "Cleaned records", writes: "Input for run-analysis.py" },
+      json: { label: "Dashboard data contract", title: "viz/data/garmin_activities.json", text: "Generated data for the static site: meta, individual cleaned activities, monthly year totals and monthly totals by bucket. It is ignored by Git because it is personal activity data.", reads: "Payload from aggregate.py", writes: "Fetched by viz/app.js" },
+      viz: { label: "Deployed document", title: "viz/index.html", text: "The static page includes a root element, loads the project CSS and ES module, and imports Plotly from a CDN. Netlify publishes this directory—not the repository root.", reads: "styles.css, app.js, Plotly CDN", writes: "Dashboard shell" },
+      app: { label: "Dashboard controller", title: "viz/app.js + styles.css", text: "app.js fetches the generated JSON and creates controls, summary cards, filters and Plotly traces. styles.css owns the responsive visual layout; it is not a component framework.", reads: "Dashboard JSON, user selections", writes: "Interactive Plotly chart and stats" },
+      analysis: { label: "Alternate local route", title: "run-analysis.py", text: "Reads the Excel workbook with pandas, normalizes legacy/new column names, restricts to running records, computes monthly values and renders a seaborn/matplotlib chart.", reads: "Excel export", writes: "Displayed or saved chart" },
+      tests: { label: "Verification", title: "tests/", text: "Seven focused pytest modules protect the pipeline’s boundaries: normalization, cleaning, bucketing, aggregation, serialized payloads and paginated fetch behavior. The dashboard JavaScript has a syntax check in the README workflow.", reads: "Pure module interfaces", writes: "Fast regression feedback" }
+    };
+    const inspector = document.querySelector("#inspector");
+    function selectNode(key) {
+      const item = nodeData[key];
+      document.querySelectorAll(".node").forEach((node) => node.classList.toggle("selected", node.dataset.node === key));
+      inspector.innerHTML = `<p class="label">${item.label}</p><h3>${item.title}</h3><p>${item.text}</p><dl><dt>Consumes</dt><dd>${item.reads}</dd><dt>Produces</dt><dd>${item.writes}</dd></dl>`;
+    }
+    document.querySelectorAll(".node").forEach((node) => node.addEventListener("click", () => selectNode(node.dataset.node)));
+    document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("active", item === tab));
+      document.querySelectorAll(".view").forEach((view) => view.classList.toggle("active", view.id === tab.dataset.view));
+    }));
+    selectNode("cli");
+  </script>
+</body>
+</html>

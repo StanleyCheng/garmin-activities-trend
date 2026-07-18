@@ -46,7 +46,7 @@ add `GARMINTOKENS=/private/path` to `.env`.
 
 ## 4. Fetch and prepare activities
 
-Run the fetch command. The default limit is 5,000 activities:
+Run the fetch command. The default limit is 10,000 activities:
 
 ```sh
 uv run python get-garmin.py
@@ -119,7 +119,7 @@ filter.
 Run the fetch command again, then reload the browser page:
 
 ```sh
-uv run python get-garmin.py --max-activities 5000
+uv run python get-garmin.py --max-activities 10000
 ```
 
 ## 9. Create a static chart (optional)

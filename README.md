@@ -22,7 +22,7 @@ they do not repeatedly submit your password to Garmin. Set `GARMINTOKENS` in
 ## Refresh to the latest Garmin data
 
 ```sh
-uv run python get-garmin.py --max-activities 5000
+uv run python get-garmin.py --max-activities 10000
 ```
 
 If Garmin reports `429`, `CAPTCHA_REQUIRED`, or HTTP `403`, stop retrying.
@@ -39,7 +39,7 @@ requested limit or Garmin returns no more records. It writes:
 
 The terminal also reports how many activities were dropped by each cleaning
 rule. Increase `--max-activities` if the Garmin account contains more than
-5,000 activities.
+10,000 activities.
 
 ## Display the interactive chart
 
