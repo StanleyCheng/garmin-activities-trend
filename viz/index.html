@@ -3,12 +3,75 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Garmin Activity Trends</title>
+  <title>Pace Explorer</title>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app"></div>
+  <div id="status" class="status" role="status">Loading Garmin pace data…</div>
+
+  <main id="app" class="workbook" hidden>
+    <header class="title-strip">
+      <h1>Pace Explorer</h1>
+    </header>
+
+    <p class="intro">
+      Select a year plus start/end months to plot average cleaned pace by month. Cleaning ignores
+      paces below 3:45 min/km or above 15:00 min/km.
+    </p>
+
+    <section class="controls" aria-label="Pace chart filters">
+      <label class="control-field" for="year-select">
+        <span>Select year</span>
+        <select id="year-select"></select>
+      </label>
+      <label class="control-field" for="start-month-select">
+        <span>Start month</span>
+        <select id="start-month-select"></select>
+      </label>
+      <label class="control-field" for="end-month-select">
+        <span>End month</span>
+        <select id="end-month-select"></select>
+      </label>
+    </section>
+
+    <section class="selection-summary" aria-live="polite">
+      <div><span>Months plotted</span><strong id="months-plotted">0</strong></div>
+      <div><span>Average pace</span><strong id="average-pace">—</strong></div>
+      <div><span>Activities included</span><strong id="activities-included">0</strong></div>
+    </section>
+
+    <div class="table-scroll">
+      <table class="month-table">
+        <thead>
+          <tr>
+            <th scope="col">Month</th>
+            <th scope="col">Avg pace (mm:ss/km)</th>
+            <th scope="col">Activities</th>
+            <th scope="col">Chart month</th>
+          </tr>
+        </thead>
+        <tbody id="month-table-body"></tbody>
+      </table>
+    </div>
+
+    <section class="cleaned-summary" aria-labelledby="cleaned-summary-title">
+      <h2 id="cleaned-summary-title">Cleaned-data summary</h2>
+      <dl>
+        <div><dt>Original activities</dt><dd id="original-activities">0</dd></div>
+        <div><dt>Cleaned activities</dt><dd id="cleaned-activities">0</dd></div>
+        <div><dt>Excluded activities</dt><dd id="excluded-activities">0</dd></div>
+        <div><dt>Min cleaned pace</dt><dd id="min-cleaned-pace">—</dd></div>
+        <div><dt>Max cleaned pace</dt><dd id="max-cleaned-pace">—</dd></div>
+      </dl>
+    </section>
+
+    <p id="chart-note" class="chart-note"></p>
+    <section class="chart-shell" aria-label="Average pace by month chart">
+      <div id="chart"></div>
+    </section>
+  </main>
+
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,543 +1,303 @@
-// viz/app.js — phase 2 baseline; phase 3 adds features.
-
-// Year-range control uses two side-by-side <select> boxes (choice b).
-// Swap to noUiSlider library when slider decision is finalized.
-const MAX_OVERLAY_YEARS = 6;
-
-// Client-side mirror of transform.to_bucket (Python is source of truth).
-const BUCKET_UPPER_BOUNDS_CLIENT = [3, 5, 10, 15, 25, 40, Infinity];
-const BUCKET_NAMES_CLIENT = ["<3", "3-5", "5-10", "10-15", "15-25", "25-40", "40+"];
-
-function toBucketClient(km) {
-  if (km == null) return "all";
-  for (let i = 0; i < BUCKET_UPPER_BOUNDS_CLIENT.length; i++) {
-    if (km < BUCKET_UPPER_BOUNDS_CLIENT[i]) return BUCKET_NAMES_CLIENT[i];
-  }
-  return "40+";
-}
+const MONTH_NUMBERS = Array.from({ length: 12 }, (_, index) => index + 1);
+const MIN_PACE_SECONDS = 3 * 60 + 45;
+const MAX_PACE_SECONDS = 15 * 60;
+const state = { year: null, startMonth: 1, endMonth: 12 };
 
 const appEl = document.getElementById("app");
-const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const statusEl = document.getElementById("status");
+const chartEl = document.getElementById("chart");
+const yearSelect = document.getElementById("year-select");
+const startMonthSelect = document.getElementById("start-month-select");
+const endMonthSelect = document.getElementById("end-month-select");
 
-const state = {
-  fromYear: null,
-  toYear: null,
-  bucket: "all",
-  showPace: true,
-  showDistance: true,
-  mode: "line",  // 'line' | 'bar'
-};
-
-function rangeInclusive(from, to) {
-  const result = [];
-  for (let y = from; y <= to; y++) result.push(y);
-  return result;
+function formatPaceMMSS(seconds) {
+  if (!Number.isFinite(seconds)) return "—";
+  const rounded = Math.round(seconds);
+  return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}`;
 }
 
-function computeTightBounds(values, reversed) {
-  const present = values.filter((value) => typeof value === "number");
-  if (!present.length) return { range: [0, 1] };
-  const min = Math.min(...present);
-  const max = Math.max(...present);
-  const span = Math.max(max - min, 1);
-  const bottom = span * 0.02;
-  const top = span * 0.04;
-  const lo = min - bottom;
-  const hi = max + top;
-  return reversed
-    ? { range: [hi, lo] }
-    : { range: [lo, hi] };
-}
+function buildPaceData(activities) {
+  const byYear = {};
+  const cleanedPaces = [];
 
-function showToast(msg) {
-  const existing = document.getElementById("year-range-toast");
-  if (existing) existing.remove();
-  const toast = document.createElement("div");
-  toast.id = "year-range-toast";
-  toast.className = "toast";
-  toast.textContent = msg;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
-}
+  for (const activity of activities) {
+    const { year, month, pace_s_per_km: pace } = activity;
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12
+        || !Number.isFinite(pace) || pace < MIN_PACE_SECONDS || pace > MAX_PACE_SECONDS) continue;
 
-function warnOnLongRange() {
-  if (state.fromYear === null || state.toYear === null) return;
-  const span = state.toYear - state.fromYear + 1;
-  if (span > 7) {
-    showToast(`Showing ${span} years; colors repeat. Recommended max ${MAX_OVERLAY_YEARS}.`);
+    const yearData = byYear[year] ||= {
+      pace_sums: Array(12).fill(0),
+      pace_s_per_km: Array(12).fill(null),
+      activity_count: Array(12).fill(0),
+    };
+    yearData.pace_sums[month - 1] += pace;
+    yearData.activity_count[month - 1] += 1;
+    cleanedPaces.push(pace);
   }
-}
 
-function getYearlyValues(chartData, year) {
-  if (state.bucket === "all") {
-    return chartData.monthly.by_year[year];
+  for (const yearData of Object.values(byYear)) {
+    yearData.pace_s_per_km = yearData.pace_sums.map((sum, index) =>
+      yearData.activity_count[index] ? sum / yearData.activity_count[index] : null);
+    delete yearData.pace_sums;
   }
-  const monthlyByBucket = chartData.monthly.monthly_by_bucket || chartData.monthly_by_bucket;
-  return monthlyByBucket?.[year]?.[state.bucket];
+
+  return { byYear, cleanedPaces, originalCount: activities.length };
 }
 
-function filterActivities(chartData) {
-  return chartData.activities.filter((a) => {
-    if (a.year < state.fromYear || a.year > state.toYear) return false;
-    if (state.bucket !== "all") {
-      const b = toBucketClient(a.distance_km);
-      if (b !== state.bucket) return false;
-    }
-    return true;
-  });
-}
+function summarizeMonths(yearData) {
+  const selectedPaces = [];
+  let activityCount = 0;
 
-function computeStats(filtered) {
-  const paces = filtered.map((a) => a.pace_s_per_km).filter((v) => v !== null);
-  const distances = filtered.map((a) => a.distance_km).filter((v) => v !== null);
+  for (const month of MONTH_NUMBERS) {
+    if (month < state.startMonth || month > state.endMonth) continue;
+    const pace = yearData.pace_s_per_km[month - 1];
+    if (Number.isFinite(pace)) selectedPaces.push(pace);
+    activityCount += yearData.activity_count[month - 1] || 0;
+  }
+
   return {
-    avgPace: paces.length ? paces.reduce((s, v) => s + v, 0) / paces.length : null,
-    totalMileage: distances.reduce((s, v) => s + v, 0),
-    activityCount: filtered.length,
-    longestRun: distances.length ? Math.max(...distances) : null,
-    bestPace: paces.length ? Math.min(...paces) : null,
+    monthsPlotted: selectedPaces.length,
+    averagePace: selectedPaces.length
+      ? selectedPaces.reduce((sum, pace) => sum + pace, 0) / selectedPaces.length
+      : null,
+    activityCount,
   };
 }
 
-function formatPaceMMSS(seconds) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "—";
-  const rounded = Math.round(seconds);
-  const minutes = Math.floor(rounded / 60);
-  const secs = rounded % 60;
-  return `${minutes}:${String(secs).padStart(2, "0")}`;
+function buildPaceScale(paces) {
+  const present = paces.filter(Number.isFinite);
+  const top = present.length
+    ? Math.ceil((Math.max(...present) + 30) / 60) * 60
+    : 600;
+  const step = top <= 600 ? 60 : top <= 1200 ? 120 : 300;
+  const tickvals = [];
+  for (let value = 0; value <= top; value += step) tickvals.push(value);
+  return { range: [0, top], tickvals, ticktext: tickvals.map(formatPaceMMSS) };
 }
 
-function renderStats(stats) {
-  const footer = document.getElementById("stats-footer");
-  if (!footer) return;
-  footer.replaceChildren();
+function renderMonthTable(yearData) {
+  const body = document.getElementById("month-table-body");
+  body.replaceChildren();
 
-  const items = [
-    { label: "Avg pace", value: formatPaceMMSS(stats.avgPace) },
-    {
-      label: "Total mileage",
-      value: `${stats.totalMileage.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`,
-    },
-    { label: "Activity count", value: stats.activityCount.toLocaleString() },
-    {
-      label: "Longest run",
-      value: stats.longestRun !== null
-        ? `${stats.longestRun.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`
-        : "—",
-    },
-    { label: "Best pace", value: formatPaceMMSS(stats.bestPace) },
-  ];
+  for (const month of MONTH_NUMBERS) {
+    const inRange = month >= state.startMonth && month <= state.endMonth;
+    const row = document.createElement("tr");
+    if (!inRange) row.className = "outside-range";
 
-  for (const item of items) {
-    const card = document.createElement("div");
-    card.className = "stat-card";
-    const lbl = document.createElement("div");
-    lbl.className = "stat-label";
-    lbl.textContent = item.label;
-    const val = document.createElement("div");
-    val.className = "stat-value";
-    val.textContent = item.value;
-    card.appendChild(lbl);
-    card.appendChild(val);
-    footer.appendChild(card);
+    const values = [
+      `Month ${month}`,
+      inRange ? formatPaceMMSS(yearData.pace_s_per_km[month - 1]) : "—",
+      inRange ? String(yearData.activity_count[month - 1] || 0) : "—",
+      `${state.year}-${String(month).padStart(2, "0")}`,
+    ];
+
+    for (const value of values) {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    }
+    body.appendChild(row);
   }
 }
 
-function buildTraces(chartData) {
-  const traces = [];
-  const years = rangeInclusive(state.fromYear, state.toYear);
-  const canInterpolateViridis = Plotly.d3 && typeof Plotly.d3.interpolateViridis === "function";
-  const palette = years.length <= 7 && canInterpolateViridis
-    ? years.map((_, i) => Plotly.d3.interpolateViridis(i / Math.max(1, years.length - 1)))
-    : years.map((_, i) => `hsl(${(i * 360) / Math.max(1, years.length)}, 60%, 50%)`);
-
-  for (let i = 0; i < years.length; i++) {
-    const year = years[i];
-    const values = getYearlyValues(chartData, String(year));
-    if (!values) continue;
-    const color = palette[i];
-
-    if (state.showPace && values.pace_s_per_km.some(Number.isFinite)) {
-      traces.push({
-        x: months,
-        y: values.pace_s_per_km,
-        name: `${year} Pace`,
-        type: state.mode === "bar" ? "bar" : "scatter",
-        mode: state.mode === "bar" ? undefined : "lines+markers",
-        yaxis: "y2",
-        line: { color, width: 2.5 },
-        marker: { size: 6, color },
-        hovertemplate: "%{x}<br>%{customdata}<extra></extra>",
-        customdata: values.pace_s_per_km.map(formatPaceMMSS),
-      });
-    }
-
-    if (state.showDistance && values.distance_km_total.some(Number.isFinite)) {
-      traces.push({
-        x: months,
-        y: values.distance_km_total,
-        name: `${year} Distance`,
-        type: state.mode === "bar" ? "bar" : "scatter",
-        mode: state.mode === "bar" ? undefined : "lines+markers",
-        yaxis: "y",
-        line: { color, width: 2.5 },
-        marker: { size: 6, color },
-        hovertemplate: "%{x}<br>%{y:.2f} km<extra></extra>",
-      });
-    }
-  }
-  return traces;
+function renderSelectionSummary(yearData) {
+  const summary = summarizeMonths(yearData);
+  document.getElementById("months-plotted").textContent = summary.monthsPlotted;
+  document.getElementById("average-pace").textContent = formatPaceMMSS(summary.averagePace);
+  document.getElementById("activities-included").textContent = summary.activityCount.toLocaleString();
 }
 
-function buildLayout(traces) {
+function renderCleanedSummary(paceData) {
+  const cleaned = paceData.cleanedPaces.length;
+  document.getElementById("original-activities").textContent = paceData.originalCount.toLocaleString();
+  document.getElementById("cleaned-activities").textContent = cleaned.toLocaleString();
+  document.getElementById("excluded-activities").textContent =
+    (paceData.originalCount - cleaned).toLocaleString();
+  document.getElementById("min-cleaned-pace").textContent = paceData.cleanedPaces.length
+    ? (Math.min(...paceData.cleanedPaces) / 60).toFixed(2)
+    : "—";
+  document.getElementById("max-cleaned-pace").textContent = paceData.cleanedPaces.length
+    ? (Math.max(...paceData.cleanedPaces) / 60).toFixed(2)
+    : "—";
+}
+
+function renderChart(yearData) {
+  const paces = yearData.pace_s_per_km.map((pace, index) => {
+    const month = index + 1;
+    return month >= state.startMonth && month <= state.endMonth ? pace : null;
+  });
+  const paceLabels = paces.map((pace) => Number.isFinite(pace) ? formatPaceMMSS(pace) : "");
+  const paceScale = buildPaceScale(paces);
   const isNarrow = window.innerWidth <= 720;
-  const paceValues = traces
-    .filter((trace) => trace.yaxis === "y2")
-    .flatMap((trace) => trace.y || [])
-    .filter((value) => value !== null && value !== undefined);
 
-  const distValues = traces
-    .filter((trace) => trace.yaxis === "y")
-    .flatMap((trace) => trace.y || [])
-    .filter((value) => value !== null && value !== undefined);
+  const trace = {
+    x: MONTH_NUMBERS,
+    y: paces,
+    type: "scatter",
+    mode: "lines+markers+text",
+    connectgaps: false,
+    line: { color: "#4472c4", width: 3 },
+    marker: { color: "#4472c4", size: 7 },
+    text: paceLabels,
+    textposition: "top center",
+    textfont: { color: "#333333", size: 12 },
+    cliponaxis: false,
+    customdata: paceLabels,
+    hovertemplate: "Month %{x}<br>Average pace: %{customdata} /km<extra></extra>",
+  };
 
-  return {
-    title: `Pace vs Distance · ${state.fromYear}–${state.toYear}`,
+  const layout = {
+    title: { text: "Average Pace by Month (mm:ss/km)", font: { size: isNarrow ? 17 : 21 } },
+    autosize: true,
     paper_bgcolor: "#ffffff",
-    plot_bgcolor: "#fbfbfb",
-    xaxis: { title: "", tickfont: { size: 11 } },
+    plot_bgcolor: "#ffffff",
+    font: { family: '"Segoe UI", Arial, sans-serif', color: "#4a4a4a" },
+    margin: isNarrow ? { l: 58, r: 18, t: 64, b: 78 } : { l: 76, r: 26, t: 72, b: 72 },
+    showlegend: false,
+    hovermode: "closest",
+    dragmode: false,
+    xaxis: {
+      title: { text: "Month 1 to Month 12" },
+      range: [0.5, 12.5],
+      tickmode: "array",
+      tickvals: MONTH_NUMBERS,
+      ticktext: MONTH_NUMBERS.map((month) => isNarrow ? String(month) : `Month ${month}`),
+      fixedrange: true,
+      showgrid: false,
+      zeroline: false,
+    },
     yaxis: {
-      title: "Distance (km)",
-      ...computeTightBounds(distValues, false),
-      autorange: false,
-      visible: distValues.length > 0,
+      title: { text: "Pace (mm:ss/km)" },
+      ...paceScale,
+      fixedrange: true,
+      gridcolor: "#d9d9d9",
+      zerolinecolor: "#bfbfbf",
     },
-    yaxis2: {
-      title: "Pace (mm:ss / km)",
-      ...computeTightBounds(paceValues, true),
-      autorange: false,
-      overlaying: "y",
-      side: "right",
-      visible: paceValues.length > 0,
-    },
-    barmode: state.mode === "bar" ? "overlay" : undefined,
-    showlegend: true,
-    legend: isNarrow ? {
-      orientation: "h",
-      x: 0,
-      y: -0.14,
-      xanchor: "left",
-      yanchor: "top",
-      font: { size: 10 },
-    } : undefined,
-    margin: isNarrow
-      ? { l: 52, r: 52, t: 60, b: 95 }
-      : { l: 60, r: 60, t: 60, b: 40 },
-    hovermode: "x unified",
-    annotations: traces.length ? [] : [{
-      text: "No data for this selection",
+    annotations: paceLabels.some(Boolean) ? [] : [{
+      text: "No pace data for this selection",
       x: 0.5,
       y: 0.5,
       xref: "paper",
       yref: "paper",
       showarrow: false,
+      font: { size: 16, color: "#666666" },
     }],
   };
+
+  Plotly.react(chartEl, [trace], layout, {
+    responsive: true,
+    displayModeBar: false,
+    displaylogo: false,
+  });
+}
+
+function populateSelects(years) {
+  for (const year of years) {
+    const option = document.createElement("option");
+    option.value = year;
+    option.textContent = year;
+    yearSelect.appendChild(option);
+  }
+
+  for (const month of MONTH_NUMBERS) {
+    for (const select of [startMonthSelect, endMonthSelect]) {
+      const option = document.createElement("option");
+      option.value = month;
+      option.textContent = month;
+      select.appendChild(option);
+    }
+  }
+
+  state.year = years.at(-1);
+  yearSelect.value = state.year;
+  startMonthSelect.value = state.startMonth;
+  endMonthSelect.value = state.endMonth;
+}
+
+function render(paceData) {
+  const yearData = paceData.byYear[state.year];
+  renderMonthTable(yearData);
+  renderSelectionSummary(yearData);
+  renderChart(yearData);
+  document.getElementById("chart-note").textContent =
+    `Horizontal axis locked to Month 1 through Month 12; pace displayed as mm:ss/km for selected year ${state.year}`;
+}
+
+function addInteractions(paceData) {
+  yearSelect.addEventListener("change", () => {
+    state.year = yearSelect.value;
+    render(paceData);
+  });
+  startMonthSelect.addEventListener("change", () => {
+    state.startMonth = Number(startMonthSelect.value);
+    if (state.startMonth > state.endMonth) {
+      state.endMonth = state.startMonth;
+      endMonthSelect.value = state.endMonth;
+    }
+    render(paceData);
+  });
+  endMonthSelect.addEventListener("change", () => {
+    state.endMonth = Number(endMonthSelect.value);
+    if (state.endMonth < state.startMonth) {
+      state.startMonth = state.endMonth;
+      startMonthSelect.value = state.startMonth;
+    }
+    render(paceData);
+  });
+  window.addEventListener("resize", () => renderChart(paceData.byYear[state.year]));
 }
 
 function showError(message) {
-  const banner = document.createElement("div");
-  banner.className = "banner banner-error";
-  banner.textContent = message;
-  appEl.replaceChildren(banner);
+  statusEl.className = "status status-error";
+  statusEl.textContent = message;
+}
+
+function selfCheck() {
+  const previous = { ...state };
+  state.startMonth = 1;
+  state.endMonth = 3;
+  const summary = summarizeMonths({
+    pace_s_per_km: [300, null, 360, ...Array(9).fill(null)],
+    activity_count: [1, 0, 2, ...Array(9).fill(0)],
+  });
+  console.assert(summary.monthsPlotted === 2 && summary.activityCount === 3
+    && formatPaceMMSS(summary.averagePace) === "5:30", "Pace Explorer self-check failed");
+  const paceData = buildPaceData([
+    { year: 2024, month: 1, pace_s_per_km: 300 },
+    { year: 2024, month: 1, pace_s_per_km: 920 },
+  ]);
+  console.assert(paceData.cleanedPaces.length === 1
+    && paceData.byYear[2024].pace_s_per_km[0] === 300, "Pace cleaning self-check failed");
+  Object.assign(state, previous);
 }
 
 async function init() {
-  let res;
-  try {
-    res = await fetch("./data/garmin_activities.json", { cache: "no-store" });
-  } catch (e) {
-    showError(`Unable to load Garmin data: ${e.message}`);
-    return;
-  }
-  if (!res.ok) {
-    showError("Run `uv run python get-garmin.py` to create or refresh the dashboard data.");
-    return;
-  }
-  let chartData;
-  try {
-    chartData = await res.json();
-  } catch (e) {
-    showError(`Corrupt Garmin data: ${e.message}`);
-    return;
-  }
-  if (!chartData.meta?.year_range?.length || !chartData.monthly?.by_year
-      || !Array.isArray(chartData.activities)) {
-    showError("The Garmin data file has no chartable activities.");
-    return;
-  }
+  selfCheck();
   if (typeof Plotly === "undefined") {
     showError("Plotly could not be loaded. Check the network connection and reload.");
     return;
   }
-  renderApp(chartData);
-}
 
-function renderApp(chartData) {
-  // === Build page chrome (matches legacy garmin_activities_trend.html structure) ===
-  const page = document.createElement("div");
-  page.className = "page";
-  appEl.appendChild(page);
-
-  const topbar = document.createElement("header");
-  topbar.className = "topbar";
-  page.appendChild(topbar);
-
-  const topbarInner = document.createElement("div");
-  topbarInner.className = "topbar-inner";
-  topbar.appendChild(topbarInner);
-
-  const titleWrap = document.createElement("div");
-  const title = document.createElement("h1");
-  title.textContent = "Garmin Monthly Trends";
-  titleWrap.appendChild(title);
-  topbarInner.appendChild(titleWrap);
-
-  const summary = document.createElement("div");
-  summary.className = "summary";
-  topbarInner.appendChild(summary);
-
-  function makeMetric(label, id, { compact = false, extraClass = "" } = {}) {
-    const m = document.createElement("div");
-    m.className = extraClass ? `metric ${extraClass}` : "metric";
-    const lbl = document.createElement("div");
-    lbl.className = "metric-label";
-    lbl.textContent = label;
-    const val = document.createElement("div");
-    val.className = compact ? "metric-value compact" : "metric-value";
-    val.id = id;
-    m.appendChild(lbl);
-    m.appendChild(val);
-    summary.appendChild(m);
-    return val;
-  }
-
-  const garminUser = makeMetric("Garmin User", "garminUser", { compact: true, extraClass: "user-metric" });
-  const monthlyMileage = makeMetric("Monthly Mileage", "monthlyMileage", { compact: true, extraClass: "mileage-metric" });
-  const monthlyActivities = makeMetric("Monthly Count", "monthlyActivities");
-  const activityCount = makeMetric("Total Activities", "activityCount");
-  const yearCount = makeMetric("Total Years", "yearCount");
-
-  const main = document.createElement("main");
-  page.appendChild(main);
-
-  const controls = document.createElement("div");
-  controls.className = "controls";
-  main.appendChild(controls);
-  const yearSelects = { from: null, to: null };
-
-  function renderBucketChips(chartData) {
-    const wrap = document.createElement("div");
-    wrap.className = "control-field";
-    const label = document.createElement("label");
-    label.textContent = "Distance";
-    wrap.appendChild(label);
-    const chips = document.createElement("div");
-    chips.className = "chip-group";
-    const buckets = ["all", ...chartData.meta.distance_buckets.filter(b => b !== "all")];
-    const chipButtons = [];
-    for (const b of buckets) {
-      const chip = document.createElement("button");
-      chip.textContent = b === "all" ? "All" : `${b} km`;
-      chip.className = "chip" + (state.bucket === b ? " chip-active" : "");
-      chip.addEventListener("click", () => {
-        state.bucket = b;
-        for (const btn of chipButtons) {
-          btn.classList.toggle("chip-active", btn === chip);
-        }
-        renderChart();
-      });
-      chips.appendChild(chip);
-      chipButtons.push(chip);
+  try {
+    const response = await fetch("./data/garmin_activities.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("Run `uv run python get-garmin.py` to create or refresh the dashboard data.");
+    const chartData = await response.json();
+    if (!Array.isArray(chartData.activities)) {
+      throw new Error("The Garmin data file has no chartable activities.");
     }
-    wrap.appendChild(chips);
-    return wrap;
+    const paceData = buildPaceData(chartData.activities);
+    const years = Object.keys(paceData.byYear).sort((a, b) => Number(a) - Number(b));
+    if (!years.length) throw new Error("The Garmin data file has no chartable activities.");
+
+    populateSelects(years);
+    renderCleanedSummary(paceData);
+    addInteractions(paceData);
+    statusEl.hidden = true;
+    appEl.hidden = false;
+    render(paceData);
+  } catch (error) {
+    showError(error.message);
   }
-
-  function renderYearRange(chartData) {
-    const years = chartData.meta.year_range;  // [min, max]
-    if (!years || !years.length) return document.createDocumentFragment();
-
-    // Initial state: full range
-    if (state.fromYear === null) {
-      state.fromYear = years[0];
-      state.toYear = years[1];
-    }
-
-    const wrap = document.createElement("div");
-    wrap.className = "control-field";
-    const lbl = document.createElement("label");
-    lbl.textContent = "Year range";
-    wrap.appendChild(lbl);
-
-    // Two-select implementation (choice b)
-    const from = document.createElement("select");
-    const to = document.createElement("select");
-    for (let y = years[0]; y <= years[1]; y++) {
-      for (const sel of [from, to]) {
-        const opt = document.createElement("option");
-        opt.value = String(y);
-        opt.textContent = String(y);
-        sel.appendChild(opt);
-      }
-    }
-    from.value = String(state.fromYear);
-    to.value = String(state.toYear);
-    yearSelects.from = from;
-    yearSelects.to = to;
-
-    from.addEventListener("change", () => {
-      state.fromYear = Number(from.value);
-      if (state.fromYear > state.toYear) {
-        state.toYear = state.fromYear;
-        to.value = from.value;
-      }
-      renderChart();
-      warnOnLongRange();
-    });
-    to.addEventListener("change", () => {
-      state.toYear = Number(to.value);
-      if (state.toYear < state.fromYear) {
-        state.fromYear = state.toYear;
-        from.value = to.value;
-      }
-      renderChart();
-      warnOnLongRange();
-    });
-
-    const row = document.createElement("div");
-    row.className = "year-range-row";
-    row.appendChild(from);
-    row.appendChild(document.createTextNode("→"));
-    row.appendChild(to);
-    wrap.appendChild(row);
-    return wrap;
-  }
-
-  function renderModeToggle(chartData) {
-    const wrap = document.createElement("div");
-    wrap.className = "control-field";
-    const lbl = document.createElement("label");
-    lbl.textContent = "Chart";
-    wrap.appendChild(lbl);
-
-    const seg = document.createElement("div");
-    seg.className = "segmented";
-    const buttons = [];
-    for (const mode of ["line", "bar"]) {
-      const btn = document.createElement("button");
-      btn.textContent = mode === "line" ? "Line" : "Bar";
-      btn.className = state.mode === mode ? "seg-active" : "";
-      btn.addEventListener("click", () => {
-        state.mode = mode;
-        for (const button of buttons) {
-          button.classList.toggle("seg-active", button === btn);
-        }
-        // Bar mode restricted to single year (PLAN §4.3)
-        if (mode === "bar" && state.fromYear !== state.toYear) {
-          const snapped = state.toYear;
-          state.fromYear = state.toYear = snapped;
-          yearSelects.from.value = String(snapped);
-          yearSelects.to.value = String(snapped);
-          showToast(`Bar mode shows one year — narrowed to ${snapped}.`);
-        }
-        renderChart();
-      });
-      seg.appendChild(btn);
-      buttons.push(btn);
-    }
-    wrap.appendChild(seg);
-    return wrap;
-  }
-
-  function renderMetricToggles() {
-    const wrap = document.createElement("div");
-    wrap.className = "control-field";
-    const heading = document.createElement("label");
-    heading.textContent = "Metrics";
-    wrap.appendChild(heading);
-
-    const toggles = document.createElement("div");
-    toggles.className = "metric-toggles";
-    for (const [key, text] of [["showPace", "Pace"], ["showDistance", "Distance"]]) {
-      const label = document.createElement("label");
-      label.className = "metric-toggle";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = state[key];
-      checkbox.addEventListener("change", () => {
-        state[key] = checkbox.checked;
-        renderChart();
-      });
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(text));
-      toggles.appendChild(label);
-    }
-    wrap.appendChild(toggles);
-    return wrap;
-  }
-
-  controls.appendChild(renderBucketChips(chartData));
-  controls.appendChild(renderYearRange(chartData));
-  controls.appendChild(renderMetricToggles());
-  controls.appendChild(renderModeToggle(chartData));
-  warnOnLongRange();
-
-  const chartShell = document.createElement("div");
-  chartShell.className = "chart-shell";
-  main.appendChild(chartShell);
-
-  const chartDiv = document.createElement("div");
-  chartDiv.id = "chart";
-  chartShell.appendChild(chartDiv);
-
-  const footer = document.createElement("div");
-  footer.id = "stats-footer";
-  chartShell.appendChild(footer);
-
-  function updateSummary() {
-    const values = getYearlyValues(chartData, String(state.toYear));
-    const activityCounts = values?.activity_count || [];
-    let monthIndex = activityCounts.length - 1;
-    while (monthIndex >= 0 && !activityCounts[monthIndex]) monthIndex -= 1;
-
-    const selectedMileage = monthIndex >= 0 ? values.distance_km_total[monthIndex] || 0 : 0;
-    const selectedActivityCount = monthIndex >= 0 ? activityCounts[monthIndex] || 0 : 0;
-    monthlyMileage.textContent = `${selectedMileage.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`;
-    monthlyActivities.textContent = selectedActivityCount.toLocaleString();
-  }
-
-  function renderChart() {
-    const traces = buildTraces(chartData);
-    const layout = buildLayout(traces);
-    Plotly.react(chartDiv, traces, layout, { responsive: true, displaylogo: false });
-    updateSummary();
-    renderStats(computeStats(filterActivities(chartData)));
-  }
-
-  const years = chartData.monthly.by_year || {};
-  activityCount.textContent = (chartData.meta.activity_count_after_clean || 0).toLocaleString();
-  yearCount.textContent = Object.keys(years).length.toLocaleString();
-  garminUser.textContent = chartData.meta.garmin_username_masked || "";
-  window.addEventListener("resize", () => Plotly.Plots.resize(chartDiv));
-  window.addEventListener("orientationchange", () => {
-    setTimeout(() => {
-      renderChart();
-      Plotly.Plots.resize(chartDiv);
-    }, 250);
-  });
-  renderChart();
-
 }
 
 window.addEventListener("DOMContentLoaded", init);
